@@ -6,10 +6,9 @@ import cherrypy
 from cherrypy import wsgiserver
 import jsonrpc
 from jsonrpc import dispatcher
-import config
 import json
 import logging
-import qr
+from . import config, qr
 
 class API(threading.Thread):
     def __init__(self): 

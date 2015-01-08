@@ -4,14 +4,9 @@ import logging
 import logging.handlers
 import os
 import sys
-import config
 import time
 from configobj import ConfigObj
-import wallet
-import db
-import payments
-import api
-import appdirs
+from src import wallet, db, payments, api, config
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pypayd', description='pypayd is a small payment server with minimal dependencies')

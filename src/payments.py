@@ -1,15 +1,12 @@
 import json
-import priceinfo
-import db 
+from . import db, config, wallet, priceinfo
 import decimal
 import time
 import threading
-import wallet
-import config
 import logging
 import imp
 import os
-from db import qNum
+from .db import qNum
 
 D = decimal.Decimal
 def normalizeAmount(amount): 
@@ -27,10 +24,10 @@ class PaymentHandler(object):
         self.db = database
         self.wallet = wallet
         self.bitcoin_interface_name = bitcoin_interface_name
-        module_path = os.path.join("interfaces", bitcoin_interface_name)
-        f, fl, dsc = imp.find_module(bitcoin_interface_name)#os.path.join("interfaces", bitcoin_interface_name )
+        exec("from .interfaces import %s" %bitcoin_interface_name)
         global bitcoin_interface
-        bitcoin_interface = imp.load_module(bitcoin_interface_name, f, fl, dsc)
+        bitcoin_interface = eval(bitcoin_interface_name)
+        #bitcoin_interface = imp.load_module(bitcoin_interface_name, f, fl, dsc)
         
     def checkPriceInfo(self):
         return priceinfo.ticker.getPrice()

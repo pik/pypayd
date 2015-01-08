@@ -1,5 +1,5 @@
 import time
-import config
+from . import config
 import json
 import apsw
 import logging
@@ -31,7 +31,7 @@ class PyPayDB(object):
         
     def wquery(self, statement, bindings = ()):
         cur = self.con.cursor() 
-        print(statement, "\n", bindings)
+        #print(statement, "\n", bindings)
         cur.execute(statement, bindings)
         cur.close()
         

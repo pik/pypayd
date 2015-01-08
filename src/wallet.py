@@ -1,7 +1,7 @@
 from pycoin.key.BIP32Node import *
-import config
+from . import config
 from simplecrypt import encrypt, decrypt 
-from interfaces.counterwalletseed import mnemonicToEntropy
+from .interfaces.counterwalletseed import mnemonicToEntropy
 import time 
 import json
 import os

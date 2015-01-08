@@ -3,7 +3,7 @@ http://insight.bitpay.com/
 """
 import logging
 import requests
-import config
+from .. import config
 
 def getUrl(request_string):
     return requests.get(request_string).json()
