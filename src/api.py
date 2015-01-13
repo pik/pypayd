@@ -45,8 +45,12 @@ class API(threading.Thread):
         def get_orders(statement= "select * from orders", bindings= (),): 
             return payment_handler.db.getOrders(statement, bindings)
         @dispatcher.add_method
-        def get_active_orders(): 
+        def get_unfilled_orders(timestamp=config.ORDER_LIFE): 
             statement = "select * from orders where filled = 0 and timestamp > %s" %(time.time() - config.ORDER_LIFE)
+            return payment_handler.query(statement)
+        @dispatcher.add_method
+        def get_filled_orders(timestamp=config.ORDER_LIFE): 
+            statement = "select * from orders where filled != 0 and timestamp > %s" %(time.time() - config.ORDER_LIFE)
             return payment_handler.query(statement)
         @dispatcher.add_method
         def query(statement, bindings=()):
@@ -61,7 +65,7 @@ class API(threading.Thread):
         @app.route('/api', methods = ["POST",])
         #@auth.login_required
         def handle_post():
-            # Dispatcher is dictionary {<method_name>: callable}
+            # Dispatcher is a dictionary {<method_name>: callable}
             try:
                 request_json = flask.request.get_data().decode('utf-8')
                 request_data = json.loads(request_json)
@@ -71,7 +75,6 @@ class API(threading.Thread):
                 return flask.Response(obj_error.json.encode(), 200, mimetype='application/json')
             jsonrpc_response = jsonrpc.JSONRPCResponseManager.handle(request_json, dispatcher)
             response = flask.Response(jsonrpc_response.json.encode(), 200, mimetype='application/json')
-            #print(response)
             return response
         d = wsgiserver.WSGIPathInfoDispatcher({'/': app.wsgi_app})
         self.server = wsgiserver.CherryPyWSGIServer((config.RPC_HOST, config.RPC_PORT), d) 

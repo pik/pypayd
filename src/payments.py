@@ -38,11 +38,9 @@ class PaymentHandler(object):
     #Runs address polling for new payments
     def run(self):
         with self.locks['run']:
-            self.poller_thread = threading.Thread(target=self._run)
+            #thread should exit on keyboard interupt after api server stops
+            self.poller_thread = threading.Thread(target=self._run, daemon=True)
             self.poller_thread.start()
-    def stop(self): 
-        try: self.poller_thread._stop()
-        except: pass
     
     def _run(self, polling_delay=config.POLLING_DELAY):
         while True:
@@ -88,10 +86,11 @@ class PaymentHandler(object):
             self.pollAddress(addr)
         
     def processTxIn(self, receiving_address, tx): 
+        """Add USD value at time of receipt to database? """
         notes = []
         valid = True
         order = None
-        #timestamp = time.time()
+        timestamp = time.time()
         tx_full = bitcoin_interface.getTxInfo(tx['txid'])
         #only one order per address, so just look up by address
         if config.GEN_NEW:
@@ -185,7 +184,7 @@ class PaymentHandler(object):
     def getPaymentAddress(self, gen_new): 
         current_address = self.wallet.getCurrentAddress()
         try:
-            result = self.db.rquery("select * from addresses where (receiving_address = %s)" %current_address) 
+            result = self.db.rquery("select * from addresses where (receiving_address = '%s')" %current_address) 
         #If table is empty
         except: result = None
         if not result: 

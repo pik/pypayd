@@ -32,7 +32,7 @@ LOG = None
 MAX_LOG_SIZE = 16*1024*1024
 
 STATE = {"last_order_updates": {"order_id":None, "timestamp": None}}
-DATA_DIR = None 
+DATA_DIR = None
 DB = None
 KEYPATH = None
 LAST_USED_KEYPATH = None

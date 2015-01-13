@@ -39,16 +39,14 @@ if __name__ == '__main__':
     args= parser.parse_args()
     
     def exitPyPay(message, exit_status = 0): 
-        try: 
-            pypay_api.server.stop()
-            payment_handler.stop()
-        except: pass
         logging.info(message)
         sys.exit(exit_status)
+        
     if len(sys.argv) < 2: 
         exitPyPay("No arguments received, exiting...")
     
-    config.DATA_DIR = args.data_dir or appdirs.user_data_dir(appauthor='pik', appname='pypayd', roaming=True)
+    if not config.__dict__.get('DATA_DIR'): 
+        config.DATA_DIR = args.data_dir or appdirs.user_data_dir(appauthor='pik', appname='pypayd', roaming=True)
     if not os.path.exists(config.DATA_DIR): 
         os.makedirs(config.DATA_DIR)
     #read .conf file and stuff it into config.py
@@ -112,6 +110,7 @@ if __name__ == '__main__':
     if args.server:
         try: assert(pypay_wallet)
         except: exitPyPay("A wallet is required for running the server, Exiting...")
+        print(config.DATA_DIR, config.DB, "\n")
         database = db.PyPayDB(os.path.join(config.DATA_DIR, config.DB))
         logging.info("DB loaded: %s" %config.DB) 
         if not database: exitPyPay("Unable to load SQL database, Exiting...")
@@ -126,7 +125,6 @@ if __name__ == '__main__':
             pypay_api.run(payment_handler)
         except KeyboardInterrupt:
             pypay_api.server.stop()
-            payment_handler.stop()
         #If wallet output was requested don't quite just yet
         if args.action == 'wallet' and (args.to_console or args.to_file): pass
         else: 

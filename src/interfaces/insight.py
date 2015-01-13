@@ -23,7 +23,8 @@ def check():
         raise Exception('Insight reports error: %s' % result['error'])
     if result['status'] == 'syncing':
         logging.warning("WARNING: Insight is not fully synced to the blockchain: %s%% complete" % result['syncPercentage'])
-
+    return result
+    
 def getInfo():
     return getUrl(config.BLOCKCHAIN_CONNECT + '/api/status?q=getInfo')
 
