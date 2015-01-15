@@ -63,7 +63,7 @@ class API(threading.Thread):
             return None
         @app.route('/', methods = ["POST",])
         @app.route('/api', methods = ["POST",])
-        #@auth.login_required
+        @auth.login_required
         def handle_post():
             # Dispatcher is a dictionary {<method_name>: callable}
             try:

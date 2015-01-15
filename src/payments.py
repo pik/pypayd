@@ -6,27 +6,32 @@ import threading
 import logging
 import imp
 import os
-from hashlib impot sha1
-from pycoin.ecndoing import b2a_base58
+from hashlib import sha1
+from pycoin.encoding import b2a_base58
 from .db import qNum
 
 D = decimal.Decimal
 def normalizeAmount(amount): 
     return D(str(amount)).quantize(D('.0000000'))
-
+    
+def ensureList(l): 
+        return l if isinstance(l, list) else [l] 
+        
 def extractSpecialDigits(amount): 
     if type(amount) is not decimal.Decimal:
         amount = D(str(amount)).quantize(D('.0000000'))
     return int(str(amount)[-4:])
     
 class PaymentHandler(object):
+    """The Payment Handler class - this basically handles all the payment logic connecting all the other interfaces (wallet, db, api, message_feed, blockchain_interface)"""
+    """One particular aspect of current transaction handling is that order's are not given a block_number; on creation, for an order to be filled a payment must be received within a certain time - in otherwords Pypay does not check if the payment was made prior to order creation - this may be convenient in certain cases (i.e. resubmitting an order to validate an invalid payment), the major drawback is that addresses that are used for other functions should NOT be used as payment addresses"""
     def __init__(self, database, wallet, bitcoin_interface_name=config.BLOCKCHAIN_SERVICE): 
         self.locks = {'run': threading.Lock(), 'order': threading.Lock() }
-        self.active_addresses = []
+        self.polling = {'addresses': [], 'last_updated': 0}
         self.db = database
         self.wallet = wallet
         self.bitcoin_interface_name = bitcoin_interface_name
-        exec("from .interfaces import %s" %bitcoin_interface_name)
+        exec("from .interfaces import %s" %bitcoin_interface_name) #instead of 6 lines with imp 
         global bitcoin_interface
         bitcoin_interface = eval(bitcoin_interface_name)
         #bitcoin_interface = imp.load_module(bitcoin_interface_name, f, fl, dsc)
@@ -50,12 +55,10 @@ class PaymentHandler(object):
             self.pollActiveAddresses()
             time.sleep((config.POLLING_DELAY - (time.time() - t)))
     
-    #add an include Invalids flag
     def getPayments(self, bindings):  
         payments = self.db.getPayments(bindings)
         return payments
         
-    #add an include Invalids flag
     def pollPayments(self, bindings): 
         if not bindings.get('receiving_address'): 
             orders = self.db.getOrders(bindings)
@@ -64,11 +67,13 @@ class PaymentHandler(object):
         pollAddress(orders[0]['receiving_address'])
         time.sleep(.5)
         return getPayments(bindings)
-        
-    def getActiveAddresses(self): 
-        #todo add last updated var in db, then if addreses haven't been added, we can keep polling the old ones
-        #if config self.db last updated >self.lastActiveAddressGrab #else return self.active_addresses
-        return self.db.getAddresses({}) #getActiveAddresses
+    
+    def updateActiveAddresses(self): 
+        if self.db.last_updated['addresses'] >= self.polling['last_updated']: 
+            #Get all addresses that have not been stale for longer than leaf poll life
+            addresses = self.db.rquery("select * from addresses where last_used > %s" %(time.time() - config.LEAF_POLL_LIFE))
+            #print(addresses)
+            self.polling['addresses'] = [i['receiving_address'] for i in addresses]
 
     def pollAddress(self, addr):
         logging.info('calling %s api for address info %s' %(self.bitcoin_interface_name, addr ) )
@@ -81,10 +86,10 @@ class PaymentHandler(object):
             
     def pollActiveAddresses(self):
         self.current_block = bitcoin_interface.getInfo()['info']['blocks']
-        self.active_addresses = [i['receiving_address'] for i in self.getActiveAddresses()]
-        logging.info("Current block is %s polling %i active addresses" %(self.current_block, len(self.active_addresses) ))
+        self.updateActiveAddresses()
+        logging.info("Current block is %s polling %i active addresses" %(self.current_block, len(self.polling['addresses']) ))
         #No locks here, since _run() is locked atm.. We could thread this but it doesn't seem important.  
-        for addr in self.active_addresses: 
+        for addr in self.polling['addresses']: 
             self.pollAddress(addr)
         
     def processTxIn(self, receiving_address, tx): 
@@ -94,6 +99,17 @@ class PaymentHandler(object):
         order = None
         timestamp = time.time()
         tx_full = bitcoin_interface.getTxInfo(tx['txid'])
+        tx_record = self.db.getPayments({"txid": tx['txid']})
+        if tx_record: 
+            tx_record = tx_record[0]
+            availableCheckPoints = lambda conf: len([i for i in ensureList(config.UPDATE_ON_CONFIRM) if i > conf])
+            #If a payment exists but has been recorded with less confirmations then a possible checkpoint, update the confirmation number
+            if availableCheckPoints(tx_record['confirmations']) > availableCheckPoints(tx.get('confirmations', 0)): 
+                self.db.updatePayment({"txid": tx["txid"], "confirmations": tx['confirmations']})
+                #Publish checkpoint update info
+                #feed.publishMessage()
+            else: print("tx_record for txid %s exists, no updates to record" %tx_record['txid'])
+            return True
         #only one order per address, so just look up by address
         if config.GEN_NEW:
             try: 
@@ -113,37 +129,33 @@ class PaymentHandler(object):
             order_id=None
             valid = False
             notes.append("order not found for special digits %i" %tx_special_digits)
-        else:
+        else: 
+            #A matching order has been found - verify other validity parameters
             if not amount >=  D(order['btc_price']):
                 valid = False
                 notes.append("amount received is less than btc_price required for order_id %s" %order_id)
-            elif amount > D(order['btc_price']) + D('.0000001'):
-                notes.append("transaction with order_id %s overpaid amount by %s" %(order_id, str(amount - D(order['btc_price'])))) #Negligible overpay
+            elif amount > D(order['btc_price']) + D('.00001'):
+                notes.append("transaction with order_id %s overpaid amount by %s" %(order_id, str(amount - D(order['btc_price'])))) 
              #processing as config.ORDER_LIFE allows some control (i.e. if there was a server shutdown and we want to process old orders) blockchain timestamps are unfortunatly not very accurate
-            if not float(order['creation_time']) > timestamp - config.ORDER_LIFE:
+            if not order['creation_time'] > timestamp - config.ORDER_LIFE:
                 valid = False 
                 notes.append("transaction received after expiration time for order_id %s" %order_id)
             if order['filled'] != 0 and order['filled'] != tx['txid']:
                 valid = False
-                notes.append("payment for order_id %s has already been received with txid %s" %(order_id, self.db.getPayments({'order_id': order_id})[0]['txid']))
-        logging.debug("Results ", valid, " ", str(notes))
+                notes.append("payment for order_id %s has already been received with txid %s" %(order_id, order['filled']))
+        logging.debug("txid ", tx['txid'], "Result ", valid, "      Notes ", str(notes))
         sources = str(self.sourceAddressesFromTX(tx_full)) 
-        bindings = {'receiving_address': receiving_address, 'txid': tx['txid'], 'source_address': sources, 'confirmations': (tx.get('confirmations') or 0), 'block_number': (self.current_block - (tx.get('confirmations')) or 0), 'notes': str(notes), 'tx_special_digits':tx_special_digits, 'order_id': order_id, 'amount': float(amount)} 
-        if valid: 
-            #fix timestamping on updates, don't update confirmation list at all maybe?
-            #anyways insert or replace will work for now but it's more writing than we need to be doing
-            self.db.addPayment(bindings)
-            if order['filled'] == 0:
-                self.db.updateOrder({'order_id': order_id, 'filled': tx['txid']})
-            logging.debug("Recorded payment for receiving address etc")
-        else: 
-            self.db.addInvalid(bindings)
-            logging.debug("Recorded invalid for receiving address etc")
+        bindings = {'receiving_address': receiving_address, 'txid': tx['txid'], 'source_address': sources, 'confirmations': tx.get('confirmations', 0) , 'block_number': (self.current_block -tx.get('confirmations', 0)), 'notes': str(notes), 'tx_special_digits':tx_special_digits, 'order_id': order_id, 'amount': float(amount), "valid": valid }  
+        self.db.addPayment(bindings)
+        if order.get('filled') == 0:
+            self.db.updateOrder({'order_id': order_id, 'filled': tx['txid']})
+        #There should either be a dummy feed class or a self method which will do nothing if config.ZMQ_FEED = False
+        #feed.publishMessage("payments", "new", str(bindings))
         return True
-            
+        
     def sourceAddressesFromTX(self, tx_full): 
         return [i['addr'] for i in tx_full['vin']]
-
+    
     def createOrder(self, amount, currency=config.DEFAULT_CURRENCY, item_number=None, order_id=None, gen_new = False):
         #timestamp = time.time()
         try: 
@@ -182,6 +194,7 @@ class PaymentHandler(object):
         statement = "insert into addresses(receiving_address, keypath, max_tx, max_life, special_digits) VALUES(%s)" %qNum(5)
         bindings = (new_addr, str(self.wallet.keypath), config.MAX_LEAF_TX, config.MAX_LEAF_LIFE, 0 if config.GEN_NEW else 1)
         self.db.wquery(statement, bindings)
+        self.db.last_updated['addresses'] = time.time()
 
     def getPaymentAddress(self, gen_new): 
         current_address = self.wallet.getCurrentAddress()
@@ -198,7 +211,7 @@ class PaymentHandler(object):
         if ( (time.time() - float(receiving_address['max_life'])) > float(receiving_address['creation_time']) ) or (receiving_address['special_digits'] >= receiving_address['max_tx']) or (receiving_address['special_digits'] >= 9999) or gen_new: 
             return self.getNewAddress(), 0 if config.GEN_NEW else 1
         else: 
-            #increment digits on old address and updated last_used time
+            #increment digits on old address and update last_used time
             self.db.wquery("update addresses set special_digits = special_digits +1, last_used = strftime('%s', 'now') where receiving_address = ?", (receiving_address['receiving_address'], )) 
             return receiving_address['receiving_address'], receiving_address['special_digits'] + 1 
             
