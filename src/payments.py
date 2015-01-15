@@ -6,6 +6,8 @@ import threading
 import logging
 import imp
 import os
+from hashlib impot sha1
+from pycoin.ecndoing import b2a_base58
 from .db import qNum
 
 D = decimal.Decimal
@@ -155,10 +157,10 @@ class PaymentHandler(object):
             return "failed to obtain payment address stuff"
         if not gen_new: 
             btc_price = btc_price.__str__() + ('0000' + str(special_digits))[-4:]
-        #add timestamp to hash? 
-        #change hash to hex
+        #Hash an order_id as base58 - because if someone needs to reference it the bitcoin standard is the most readable
+        #Note that the pycoin to_long method reads bytes as big endian. 
         if not order_id: 
-            order_id = hash(json.dumps({'price': str(btc_price), 'address': str(receiving_address), 'special_digits': str(special_digits)}))
+            order_id = b2a_base58(sha1(json.dumps({'price': str(btc_price), 'address': str(receiving_address), 'special_digits': str(special_digits)}).encode('utf-8')).digest())
         timeleft = config.ORDER_LIFE
         self.db.addOrder({'order_id': order_id, 'native_price': amount, 'native_currency': currency, 'btc_price': btc_price, 'special_digits':special_digits,
         'keypath': str(self.wallet.keypath), 'item_number': item_number, 'receiving_address':receiving_address, 'max_life': config.ORDER_LIFE}) 
