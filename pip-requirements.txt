@@ -6,6 +6,7 @@ MarkupSafe==0.23
 Pillow==2.7.0
 Werkzeug==0.9.6
 appdirs==1.4.0
+#APSW may have to be installed manually depending on your sqlite configuration
 apsw==3.8.5-r1
 configobj==5.0.6
 itsdangerous==0.24

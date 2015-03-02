@@ -9,7 +9,7 @@ from configobj import ConfigObj
 from src import wallet, db, payments, api, config
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog='pypayd', description='pypayd is a small payment server with minimal dependencies')
+    parser = argparse.ArgumentParser(prog='pypayd', description='A small daemon for processing bitcoin payments')
     subparsers = parser.add_subparsers(dest='action', help='available actions')
 
 
@@ -49,19 +49,21 @@ if __name__ == '__main__':
         config.DATA_DIR = args.data_dir or appdirs.user_data_dir(appauthor='pik', appname='pypayd', roaming=True)
     if not os.path.exists(config.DATA_DIR): 
         os.makedirs(config.DATA_DIR)
-    #read .conf file and stuff it into config.py
+    #read the .conf file and stuff it into config.py
     print("Loading config settings...")
     conf_file = os.path.join((args.config_file or config.DATA_DIR), "pypayd.conf")
     if not os.path.exists(conf_file):
         with open(conf_file, 'w') as wfile: 
             wfile.write("[Default]")
     conf = ConfigObj(conf_file)
-    #This will raise on a conf file without a [Default] field and will not set values that are not in config.py #Might change this behaviour later
+    #This will raise on a conf file without a [Default] field and will not set values that are not in config.py 
+    #Might change this behaviour later
     for field, value in conf['Default'].items(): 
         try:
             if field.upper() in config.__dict__.keys():
                 config.__dict__[field.upper()] = (value.lower() if type(value) is str else value)
-        except: print("Error handling config file field %s, %s" %(field, value))
+        except: 
+            print("Error handling config file field %s, %s" %(field, value))
    
     #set standard values to default or args values if they have not been set
     if not config.__dict__.get('PID'):
@@ -108,14 +110,18 @@ if __name__ == '__main__':
         logging.info("Wallet loaded: %s" %pypay_wallet.hwif())
     
     if args.server:
-        try: assert(pypay_wallet)
-        except: exitPyPay("A wallet is required for running the server, Exiting...")
+        try: 
+            assert(pypay_wallet)
+        except NameError:
+             exitPyPay("A wallet is required for running the server, Exiting...")
         print(config.DATA_DIR, config.DB, "\n")
         database = db.PyPayDB(os.path.join(config.DATA_DIR, config.DB))
         logging.info("DB loaded: %s" %config.DB) 
-        if not database: exitPyPay("Unable to load SQL database, Exiting...")
+        if not database: 
+            exitPyPay("Unable to load SQL database, Exiting...")
         payment_handler = payments.PaymentHandler(database=database, wallet=pypay_wallet, bitcoin_interface_name = config.BLOCKCHAIN_SERVICE)
-        if not payment_handler: exitPyPay("Unable to start Payment Handler, Exiting...")
+        if not payment_handler:
+             exitPyPay("Unable to start Payment Handler, Exiting...")
         #logging.info("Testing priceinfo ticker: %s BTC/USD" %(payment_handler.checkPriceInfo()))
         logging.info("Testing Blockchain connection %s" %str(payment_handler.checkBlockchainService()))
         pypay_api = api.API() 
@@ -125,7 +131,7 @@ if __name__ == '__main__':
             pypay_api.run(payment_handler)
         except KeyboardInterrupt:
             pypay_api.server.stop()
-        #If wallet output was requested don't quite just yet
+        #If wallet output was requested don't quit just yet
         if args.action == 'wallet' and (args.to_console or args.to_file): pass
         else: 
             exitPyPay("Interrupted, Exiting...")
@@ -136,8 +142,10 @@ if __name__ == '__main__':
             print("Current keypath: ", str(pypay_wallet.keypath))
             print("Public hwif: ", pypay_wallet.hwif())
             if args.output_private: 
-                try: print("Private hwif: ", pypay_wallet.hwif(True))
-                except: print("No Private part for key")
+                try: 
+                    print("Private hwif: ", pypay_wallet.hwif(True))
+                except NameError: 
+                    print("No Private part for key")
         if args.to_file:
             if not args.encrypt_pw: 
                 logging.info("No encryption password provided for wallet, skipping")
