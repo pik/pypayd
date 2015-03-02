@@ -23,18 +23,18 @@ def extractSpecialDigits(amount):
     return int(str(amount)[-4:])
     
 class PaymentHandler(object):
-    """The Payment Handler class - this basically handles all the payment logic connecting all the other interfaces (wallet, db, api, message_feed, blockchain_interface)"""
-    """One particular aspect of current transaction handling is that order's are not given a block_number; on creation, for an order to be filled a payment must be received within a certain time - in otherwords Pypay does not check if the payment was made prior to order creation - this may be convenient in certain cases (i.e. resubmitting an order to validate an invalid payment), the major drawback is that addresses that are used for other functions should NOT be used as payment addresses"""
+    """The Payment Handler class - this basically handles all the payment logic connecting all the other interfaces (wallet, db, api, message_feed, blockchain_interface)
+    
+    One particular aspect of current transaction handling is that order's are not given a block_number; on creation, for an order to be filled a payment must be received within a certain time - in otherwords Pypay does not check if the payment was made prior to order creation - this may be convenient in certain cases (i.e. resubmitting an order to validate an invalid payment), the major drawback is that addresses that are used for other functions should NOT be used as payment addresses"""
     def __init__(self, database, wallet, bitcoin_interface_name=config.BLOCKCHAIN_SERVICE): 
         self.locks = {'run': threading.Lock(), 'order': threading.Lock() }
         self.polling = {'addresses': [], 'last_updated': 0}
         self.db = database
         self.wallet = wallet
         self.bitcoin_interface_name = bitcoin_interface_name
-        exec("from .interfaces import %s" %bitcoin_interface_name) #instead of 6 lines with imp 
+        exec("from .interfaces import %s" %bitcoin_interface_name) #instead of 6 lines of importlib
         global bitcoin_interface
         bitcoin_interface = eval(bitcoin_interface_name)
-        #bitcoin_interface = imp.load_module(bitcoin_interface_name, f, fl, dsc)
         
     def checkPriceInfo(self):
         return priceinfo.ticker.getPrice()
@@ -160,8 +160,8 @@ class PaymentHandler(object):
         #timestamp = time.time()
         try: 
             btc_price = priceinfo.getPriceInBTC(amount, currency=currency).__str__()
-        except: 
-            return "error stuff failed to connect to price server"
+        except ConnectionError as e: 
+            return e
         #special_digits are 0 on gen_new, we add them to the db but ignore them for the order, and return exact_amount: False
         with self.locks['order']: 
             receiving_address, special_digits = self.getPaymentAddress(gen_new)
@@ -179,7 +179,7 @@ class PaymentHandler(object):
         return btc_price, receiving_address, order_id, timeleft, not gen_new
 
     def getNewAddress(self): 
-        #Temporary - This won't work properly if the wallet is loaded from a child key on the same branch as a previously used master
+        #Change this later - This won't work properly if the wallet is loaded from a child key on the same branch as a previously used master
         #But it will find the first unused value even if the wallet has been loaded at different ranges
         used= self.db.rquery("select keypath from addresses")
         while( list(filter(lambda x: x['keypath'] == str(self.wallet.keypath), used))):

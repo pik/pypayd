@@ -10,20 +10,21 @@ Wallet wrapper around the Pycoin implementation. (Pycoin is a little heavier of 
 The savePrivate() and savePublic() methods will save the public and/or private keys available to this wallet in an encrypted file using simplecrypt. Note: You do not need to have the privatekeys to generate new addresses.
 The MasterKey or the PublicKey for the branch specified in the configfile must be loaded at startup, branches take default numbers. Currently hardened branch's are incremented to none-hardened ones (since hardened branches require a privatekey, which you hopefully aren't loading). 
 """
-NETCODES = {"mainnet": "BTC", "testnet": "XTN"}
 
+NETCODES = {"mainnet": "BTC", "testnet": "XTN"}
 #To Do: enable autosweep, privkey_mode only
 #sweep address function
 #sweep branch function
     
 class PyPayWallet(BIP32Node):
+    
     @classmethod
     def fromEntropy(cls, seed): 
         return cls.from_master_secret(seed)
     
     @classmethod
     def fromMnemonic(cls, mnemonic, mnemonic_type = "electrumseed"):
-        exec("from interfaces.{0} import mnemonicToEntropy".format(mnemonic_type))
+        exec("from .interfaces.%s import mnemonicToEntropy" %mnemonic_type)
         seed = mnemonicToEntropy(mnemonic) 
         return cls.from_master_secret(seed)
         
@@ -31,34 +32,38 @@ class PyPayWallet(BIP32Node):
         wallet = json.dumps({ "keypath": self.keypath, "pubkey": self.hwif(), "privkey": (self.hwif(True) if (self.is_private() and store_private ) else None) })
         data = encrypt(password, wallet)
         target = os.path.join(file_dir, file_name)
-        if os.path.isfile(target) and not force: return False
+        if os.path.isfile(target) and not force: 
+            return False
         try:
             with open(target, 'wb') as wfile: 
                 result = wfile.write(data)
                 assert(len(data) == result)
-        except: return False
+        except: 
+            return False
         return result
         
     @classmethod
-    def fromEncryptedFile(cls, password, file_dir=config.DATA_DIR, file_name=config.DEFAULT_WALLET_FILE): 
-        try:
-            with open(os.path.join(file_dir, file_name), 'rb') as rfile: 
-                data = rfile.read() #read with os?
-            wallet = json.loads(decrypt(password, data).decode('utf-8'))
-        except: return False
-        return cls.from_hwif((wallet.get('privkey') or wallet.get('pubkey')), keypath=wallet.get('keypath'))
-        
+    def fromEncryptedFile(cls, password, file_dir=config.DATA_DIR, file_name=config.DEFAULT_WALLET_FILE, netcode=None): 
+        with open(os.path.join(file_dir, file_name), 'rb') as rfile: 
+            data = rfile.read() #read with os?
+        wallet = json.loads(decrypt(password, data).decode('utf-8'))
+        return cls.from_hwif((wallet.get('privkey') or wallet.get('pubkey')), keypath=wallet.get('keypath'), netcode=netcode)
+    
     @classmethod
-    def from_hwif(cls, b58_str, keypath=None): 
+    def fromHwif(cls, b58_str, keypath=None, netcode=None): 
+        return cls.from_hwif(b58_str, keypath, netcode)
+    #for format compatibility
+    @classmethod
+    def from_hwif(cls, b58_str, keypath=None, netcode = None): 
          node = BIP32Node.from_hwif(b58_str)
-         return cls.fromBIP32Node(node, keypath)
+         return cls.fromBIP32Node(node, keypath, netcode)
          
     #Go figure why BIP32Node won't instantiate from an instance of itself...
     @classmethod
-    def fromBIP32Node(cls, W, keypath=None):
+    def fromBIP32Node(cls, W, keypath=None, netcode = None):
         secret_exponent = (W._secret_exponent or None)
         public_pair = (W._public_pair if not W._secret_exponent else None)
-        netcode = NETCODES.get(("mainnet" if not config.TESTNET else "testnet"))
+        netcode = netcode if netcode else NETCODES.get(("mainnet" if not config.TESTNET else "testnet"))
         return PyPayWallet((netcode or W._netcode), W._chain_code, W._depth, W._parent_fingerprint, W._child_index, secret_exponent=secret_exponent, public_pair=public_pair, keypath= (keypath or W.__dict__.get('keypath')))
 
     def __init__(self, *args, keypath=None, testnet=config.TESTNET,**kwargs): 
@@ -87,7 +92,9 @@ class KeyPath(list):
     def incr(self, x=1, pos=-1):
         self[pos] = ''.join([l for l in str(self[pos]) if l.isdigit()])
         self[pos] = int(self[pos]) + x if int(self[pos]) >= 0 else int(self[pos]) - x
-    
+    def set_pos(self, x, pos): 
+        self[pos] = int(x)
+        
 #test
 if __name__ == '__main__': 
     def dmc(x, y): 
