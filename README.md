@@ -6,6 +6,10 @@ Pypayd provides an API for creating orders and automatically records order fulfi
 
 Pypayd automatically creates receiving addresses from it's own wallet, a wrapper around the pycoin implementation of BIP32. The wallet (can generate addresses from a public or private master-key (note that there is no need to store the private key on the server). It also supports loading keys from mnemonic, byte-string, or encrypted file. 
 
+installation
+---------------------
+For now the recomended installation method is to use ```git clone https://github.com/pik/pypayd.git``` following that ```cd``` into the pypayd directory and execute ```pip install -r pip-requirements.txt```, with this you should be good to go (one thing to note is that in some cases APSW may require manual installation).
+
 example usage
 -----------------
 Obtain an encrypted-file with a publickey on an offline server from a mnemonic:
@@ -43,6 +47,10 @@ This will return an automatically created order_id, a price converted to Bitcoin
 dependencies
 ----------------------
 See ```pip-requirements.txt```
+
+to do
+---------------------------
+See the ```TODO``` list. 
 
 interfaces 
 ---------------------------
