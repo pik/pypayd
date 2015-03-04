@@ -1,16 +1,17 @@
 
 #Defaults - overridable via. pypayd.conf or command-line arguments
 DEFAULT_KEYPATH = '0/0/1'
-DEFAULT_TICKER = 'debug'
+DEFAULT_TICKER = 'dummy'
 DEFAULT_CURRENCY = 'USD'
 DEFAULT_WALLET_FILE = 'wallet.txt'
 DEFAULT_WALLET_PASSWORD = "foobar"
 DEFAULT_DB = "pypayd.db"
-DEFAULT_TESTNET_DB = "pypayd_testnet.db"
+DEFAULT_TESTNET_DB = "tests_pypayd.db"
 #Pypay server settings
 RPC_HOST ='127.0.0.1'
 RPC_PORT = 3080
 VERSION = 0.1
+AUTH_REQUIRED = False
 #Blockchain
 TESTNET = True
 BLOCKCHAIN_CONNECT = 'http://localhost:3001' #'https://test-insight.bitpay.com' #None
@@ -23,7 +24,7 @@ POLLING_DELAY = 60
 #maximum time a leaf (address) is used to process orders before a new one is generated
 MAX_LEAF_LIFE = 604800
 #maximum number of transactions per address before a new one is generated
-MAX_LEAF_TX = 9999
+MAX_LEAF_TX = 999
 #maximum amount of time an order received for generated amount will be considered valid
 ORDER_LIFE = 86400
 #time from last order creation, after which an adress is considered stale and no longer polled
@@ -41,5 +42,7 @@ KEYPATH = None
 LAST_USED_KEYPATH = None
 ZMQ_BIND = None
 ZMQ_FEED = False
+SOCKETIO_BIND = None
+SOCKETIO_FEED = False
 RPC_USER = 'user'
 RPC_PASSWORD= 'password'

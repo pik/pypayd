@@ -97,17 +97,20 @@ if __name__ == '__main__':
     formatter = logging.Formatter('%(asctime)s %(message)s', '%Y-%m-%d-T%H:%M:%S%z')
     fileh.setFormatter(formatter)
     logger.addHandler(fileh)
-
+    #So we aren't spammed with requests creating new connections every poll
+    logging.getLogger("requests").setLevel(logging.WARN)
+    
     #print(args, "\n")
     if args.action == 'wallet': 
         if not (args.from_mnemonic or args.from_file): 
             exitPyPay("No arguments provided for wallet, Exiting...")
         if args.from_mnemonic:
-            pypay_wallet = wallet.fromMnemonic(args.mnemonic)  
+            print(dir(wallet), "PPP\m")
+            pypay_wallet = wallet.PyPayWallet.fromMnemonic(args.mnemonic)  
         elif args.from_file:     
             pypay_wallet = wallet.PyPayWallet.fromEncryptedFile(password= (args.decrypt_pw or config.DEFAULT_WALLET_PASSWORD), file_name=os.path.join(config.DATA_DIR, args.from_file))
         if not pypay_wallet: exitPyPay("Unable to load wallet, Exiting...")
-        logging.info("Wallet loaded: %s" %pypay_wallet.hwif())
+        logging.info("Wallet loaded: %s\nKeypath: %s" %(pypay_wallet.hwif(), str(pypay_wallet.keypath)))
     
     if args.server:
         try: 
@@ -124,13 +127,13 @@ if __name__ == '__main__':
              exitPyPay("Unable to start Payment Handler, Exiting...")
         #logging.info("Testing priceinfo ticker: %s BTC/USD" %(payment_handler.checkPriceInfo()))
         logging.info("Testing Blockchain connection %s" %str(payment_handler.checkBlockchainService()))
-        pypay_api = api.API() 
+        api_serv = api.API() 
         try:
             logging.info("Payment Handler loaded, starting auto-poller..")
             payment_handler.run()
-            pypay_api.run(payment_handler)
+            api_serv.serve_forever(payment_handler, threaded=False)
         except KeyboardInterrupt:
-            pypay_api.server.stop()
+            api_serv.server.stop()
         #If wallet output was requested don't quit just yet
         if args.action == 'wallet' and (args.to_console or args.to_file): pass
         else: 
