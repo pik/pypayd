@@ -42,41 +42,40 @@ addresses = {"0/0/1": "1BxhLe9ikyAWrL89uV2q8tFF3TtyxuKKX4", "0/0/2": "1ZEofWQUcq
 wallet_file_name="test_wallet.txt"
 
 class WalletTests(unittest.TestCase): 
-    
-    def testWalletElectrum(self): 
-        wal = PyPayWallet.fromMnemonic(mnemonic, mnemonic_type="electrumseed")
-        self.assertIsNotNone(wal)
-        self.assertEqual(wal.hwif(as_private=True), priv_hwif_main)
+    def tearDownClass(): 
+        os.remove(os.path.join("", wallet_file_name))
         
-    def testWalletCounterWallet(self): 
+    def test1_WalletCounterWallet(self): 
         wal = PyPayWallet.fromMnemonic(mnemonic, mnemonic_type="counterwalletseed")
         self.assertIsNotNone(wal)
         self.assertEqual(wal.hwif(as_private=True), priv_hwif_main)
         
-    def testFromHwif(self): 
+    def test2_FromHwif(self): 
         wal = PyPayWallet.fromHwif(priv_hwif_main,  netcode='BTC')
         self.assertEqual(wal.hwif(as_private=True), priv_hwif_main) 
         wal = PyPayWallet.fromHwif(pub_hwif_main, netcode='BTC')
         self.assertEqual(wal.hwif(), pub_hwif_main)
-  
-    def testToEncryptedFile(self): 
+
+    def test3_ToEncryptedFile(self): 
         wal= PyPayWallet.fromHwif(priv_hwif_main, netcode='BTC')
         self.assertIsNotNone(wal.toEncryptedFile(test_pw, file_dir = "", file_name= wallet_file_name, store_private=False))
-        self.assertIsNotNone(wal.toEncryptedFile(test_pw, file_dir ="", file_name= wallet_file_name, store_private=True, force=True))
+        wal.keypath = wallet.KeyPath('0/11/11')
+        self.assertIsNot(wal.toEncryptedFile(test_pw, file_dir ="", file_name= wallet_file_name, store_private=True, force=True), 0)
   
-    def testFromEncrytptedFile(self): 
+    def test4_FromEncryptedFile(self): 
         wal = PyPayWallet.fromEncryptedFile(test_pw,file_dir ="", file_name=wallet_file_name, netcode='BTC')
         self.assertEqual(wal.hwif(as_private=True), priv_hwif_main)
+        self.assertEqual(str(wal.keypath), '0/11/11')
         
-    def testWalletCurrentAddress(self): 
+    def test5_WalletCurrentAddress(self): 
         wal = PyPayWallet.fromHwif(priv_hwif_main, keypath="0/0/1", netcode='BTC') 
         self.assertEqual(wal.getCurrentAddress(), addresses[str(wal.keypath)])
         
-    def testWalletNewAddress(self): 
+    def test6_WalletNewAddress(self): 
         wal = PyPayWallet.fromHwif(priv_hwif_main, keypath="0/0/1", netcode='BTC') 
         self.assertEqual(wal.getNewAddress(), addresses[str(wal.keypath)])
         
-    def testWalletDynamicKeyPath(self): 
+    def test7_WalletDynamicKeyPath(self): 
         wal = PyPayWallet.fromHwif(priv_hwif_main, keypath="0/0/1", netcode='BTC') 
         wal.keypath.incr() 
         self.assertEqual(wal.getCurrentAddress(), addresses[str(wal.keypath)])
@@ -95,10 +94,10 @@ class PyPayState(unittest.TestCase):
     def setUpClass(): 
         #logging
         logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.WARN)
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(message)s')
+        formatter = logging.Formatter('\n%(message)s')
         console.setFormatter(formatter)
         logger.addHandler(console)
         logging.getLogger("requests").setLevel(logging.WARN)
@@ -117,7 +116,6 @@ class PyPayState(unittest.TestCase):
         database._initTables()
         global handler
         handler = PaymentHandler(database=database, wallet=pypay_wallet)
-        #handler.run() 
         global api_serv
         api_serv = api.API()
         api_serv.serve_forever(handler)
@@ -125,12 +123,18 @@ class PyPayState(unittest.TestCase):
         time.sleep(.2)
         host, port= api_serv.server.socket.getsockname()
         url = 'http://' + host + ':' + str(port)
-        #time.sleep(10000)
         
     def tearDownClass():
         api_serv.server.stop()
-        
-    def test1CreateOrder(self): 
+        handler.db.con.close()
+        handler.db.con_ro.close() 
+        os.remove(os.path.join("", "pypayd_tests.db"))
+    
+    def test0_APIExceptions(self): 
+        payload = {'id': 0, 'params': {"foo": "bar"}, 'jsonrpc': '2.0', 'method': 'create_order'}
+        res = requests.post( url, data=json.dumps(payload), headers=headers).json()
+    
+    def test1_CreateOrder(self): 
         payload = {'id': 0, 'params': {'amount': 20.0, 'order_id': 'DUMMY_ORD_1', 'qr_code': True}, 'jsonrpc': '2.0', 'method': 'create_order'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result']
         self.assertEqual(res['order_id'], payload['params']['order_id']) 
@@ -143,13 +147,14 @@ class PyPayState(unittest.TestCase):
         #check this since failed creations are skipping special digits atm
         payload = {'id': 0, 'params': {'amount': 40.0, 'order_id': 'DUMMY_ORD_1', 'qr_code': False}, 'jsonrpc': '2.0', 'method': 'create_order'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()
+        #print("\n", res)
         self.assertIsNotNone(res['result']['error'])
         #self.assertEqual(res['error']['data']['type'], 'ConstraintError') 
         payload = {'id': 0, 'params': {'amount': 40.0, 'order_id': 'DUMMY_ORD_2', 'qr_code': True}, 'jsonrpc': '2.0', 'method': 'create_order'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result']
         self.assertEqual(res['amount'], '0.1140003')
         
-    def test2GetOrder(self): 
+    def test2_GetOrder(self): 
         payload = {'id': 0, 'params': {'bindings' : {'order_id': 'DUMMY_ORD_1' }}, 'jsonrpc': '2.0', 'method': 'get_orders'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result'][0]
         self.assertEqual(res['rowid'], 1)
@@ -163,7 +168,7 @@ class PyPayState(unittest.TestCase):
         self.assertTrue((time.time() - res['creation_time'] < 60))
         self.assertEqual(res['max_life'], config.ORDER_LIFE)
         
-    def test3OrderReceived(self): 
+    def test3_OrderReceived(self): 
         handler.pollActiveAddresses()
         payload = {'id': 0, 'params': {'bindings':{'order_id': 'DUMMY_ORD_2'}}, 'jsonrpc': '2.0', 'method': 'get_orders'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result'][0]
@@ -180,7 +185,7 @@ class PyPayState(unittest.TestCase):
         self.assertEqual(ast.literal_eval(res['source_address'])[0], 'mudvdSecGyVyZA6QczmdPczyFavb7rfaTi')
         self.assertEqual(ast.literal_eval(res['notes']), [])
         
-    def test4InvalidReceived(self): 
+    def test4_InvalidReceived(self): 
         payload = {'id': 0, 'params': {'bindings':{'txid': 'b28c7fc0b6e710d657c7c83f0bdbb32ba494595d154e6883fecfd59691dd34ac'}}, 'jsonrpc': '2.0', 'method': 'get_payments'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result'][0]
         self.assertEqual(res['amount'], 0.0570333) 
@@ -190,11 +195,11 @@ class PyPayState(unittest.TestCase):
         self.assertEqual(res['valid'], 0)
         self.assertEqual(res['receiving_address'], 'mrUedhEhZzbmdSbmd41CxoTZuTVgrwdL7p') 
         
-    def test5KeypathOverflow(self): 
+    def test5_KeypathOverflow(self): 
         payload = {'id': 0, 'params': {'amount': 20.0, 'qr_code': False}, 'jsonrpc': '2.0', 'method': 'create_order'}
         for i in range(config.MAX_LEAF_TX-2): 
             res = requests.post( url, data=json.dumps(payload), headers=headers)
-            time.sleep(.01)
+            time.sleep(.001)
         res = res.json()['result']
         self.assertEqual(res['receiving_address'], 'mg5C6ibPHeGh6goEXEMq1pwtSTowkHS8td') 
         self.assertEqual(res['amount'], '0.0570001')
@@ -210,7 +215,7 @@ class PyPayState(unittest.TestCase):
             self.assertEqual(tx['special_digits'], 1)
             self.assertEqual(tx['order_id'], order_id) 
             
-    def test6GenNewAddress(self): 
+    def test6_GenNewAddress(self): 
         payload = {'id': 0, 'params': {'amount': 100.0, 'qr_code': False, 'gen_new': True}, 'jsonrpc': '2.0', 'method': 'create_order'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result'] 
         self.assertEqual(res['amount'], '0.286') 
@@ -228,11 +233,16 @@ class PyPayState(unittest.TestCase):
         self.assertEqual(res['max_tx'], config.MAX_LEAF_TX)
         self.assertTrue(res['special_digits'] > 0) 
         
-    def test7SpecialDigits(self): pass
+    def test7_SpecialDigits(self): pass
      
-    def test8ArbitraryKeypath(self): pass
+    def test8_ArbitraryKeypath(self): 
+        handler.wallet.keypath = wallet.KeyPath('0/11/11')
+        payload = {'id': 0, 'params': {'amount': 100.0, 'qr_code': False, 'gen_new': False}, 'jsonrpc': '2.0', 'method': 'create_order'}
+        res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result'] 
+        self.assertEqual(res['receiving_address'], 'n44GYHKzs8Ytd8cCdmzaxWpVLQpW8wo1gt')
+        self.assertEqual(res['amount'], '0.2860001')
     
-    def test9Polling(self): pass
+    def test9_Polling(self): pass
 
 if __name__ == '__main__': 
     loader = unittest.TestLoader()
