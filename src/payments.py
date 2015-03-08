@@ -158,7 +158,7 @@ class PaymentHandler(object):
                 valid = False
                 notes.append("payment for order_id %s has already been received with txid %s" %(order_id, order['filled']))
         logging.debug(("txid: ", tx['txid'], "Result: ", valid, "      Notes ", str(notes)))
-        sources = str(self.sourceAddressesFromTX(tx_full))
+        sources = str(bitcoin_interface.sourceAddressesFromTX(tx_full))
         #payment record
         bindings = {'receiving_address': receiving_address, 'txid': tx['txid'], 'source_address': sources, 'confirmations': tx.get('confirmations', 0) , 'block_number': (self.current_block -tx.get('confirmations', 0)), 'notes': str(notes), 'special_digits':tx_special_digits, 'order_id': order_id, 'amount': float(amount), "valid": valid }  
         self.db.addPayment(bindings)
@@ -169,11 +169,6 @@ class PaymentHandler(object):
         #There should either be a dummy feed class or a self method which will do nothing if config.ZMQ_FEED = False
         #feed.publishMessage("payments", "new", str(bindings))
         return True
-    
-    #Move this to interfaces
-    def sourceAddressesFromTX(self, tx_full): 
-        '''Return source (outbound) addresses for a bitcoin tx'''
-        return [i['addr'] for i in tx_full['vin']]
     
     def createOrder(self, amount, currency=config.DEFAULT_CURRENCY, item_number=None, order_id=None, gen_new = None):
         '''The main order creation method to which the api call is routed'''

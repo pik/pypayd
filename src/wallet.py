@@ -39,7 +39,7 @@ class PyPayWallet(BIP32Node):
                 result = wfile.write(data)
                 assert(len(data) == result)
         except: 
-            return False
+            return 0
         return result
         
     @classmethod
@@ -87,6 +87,8 @@ class KeyPath(list):
         elif not l: l =[]
         list.__init__(self, l,*args)
     #keeping __repr__ as a list for now
+    def __repr__(self): 
+        return "KeyPath(%s)" %self
     def __str__(self): 
         return str('/'.join([str(i) for i in self]))
     def incr(self, x=1, pos=-1):

@@ -26,7 +26,7 @@ class PyPayDB(object):
         self._initTables()
         #keep time-record of last update to tables
         self.last_updated = {"addresses": 0, "orders": 0, "payments": 0}
-                
+    
     def rquery(self, statement, bindings=()):
         ''' execute read '''
         cur = self.con_ro.cursor() 
@@ -124,3 +124,4 @@ class PyPayDB(object):
         #statement = ("select * from addresses where timestamp > %s and in_use > %i " %((time.time() - order_life), 0))
         #config.POLL_LIFE, ~like about 24 hours
         return self.getFromTable(table='addresses', bindings= bindings)
+    
