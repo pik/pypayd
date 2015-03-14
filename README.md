@@ -14,7 +14,7 @@ example usage
 -----------------
 Obtain an encrypted-file with a publickey on an offline server from a mnemonic:
 
-```python pypayd.py wallet --from-mnemonic "like just love know never want time out there make look eye" --mnemonic-type="electrum" --to-file="payment_wallet.txt" --encrypt-pw="foobar" ```
+```python pypayd.py wallet --from-mnemonic "cigarette add choice joke guess process blood freak rise favorite write pen" --mnemonic-type="electrum" --to-file="payment_wallet.txt" --encrypt-pw="foobar" ```
 
 This will generate a BIP32 wallet from the mnemonic and save only the master public key to an encrypted file. CP the file to your online server. Then run pypayd:
 
