@@ -6,6 +6,9 @@ import os
 from .. import config
 RESULTS = { 'getUrl': {} }
 
+#This only works as long as getUrl is never called directly
+#Otherwise the behaviour will be unpatched
+from . import insight
 from .insight import *
     
 def _recordOutput(func):
@@ -27,14 +30,13 @@ def _restoreOutput(func):
         return res
     return call
 
-def _wrapUrlGet(module, wrapper): 
-    module.__dict__['getUrl'] = wrapper(getUrl) 
+def _wrapGetUrl(wrapper): 
+    insight.__dict__['getUrl'] = wrapper(insight.getUrl) 
             
 def _writeRecorderToFile(filename=None, path=None): 
     if not filename: 
         filename = "dummy_recorder.json"
     with open(os.path.join(path or config.DATA_DIR, filename), 'w') as wfile:
-        print(RESULTS) 
         json.dump(RESULTS, wfile)
 
 def _restoreOutputFromFile(filename=None, path=None): 

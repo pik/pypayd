@@ -118,19 +118,22 @@ class PyPayState(unittest.TestCase):
         database = db.PyPayDB(os.path.join(config.DATA_DIR, "pypayd_tests.db"))
         database._dropAllTables()
         database._initTables()
+        global handler
+        handler = PaymentHandler(database=database, wallet=pypay_wallet)
         #dummy recorder
         global dummy
         if DUMMY_RECORD: 
             config.BLOCKCHAIN_SERVICE = 'dummy'
             from src.interfaces import dummy 
-            dummy._wrapUrlGet(dummy, dummy._recordOutput)
+            dummy._wrapGetUrl(dummy._recordOutput)
+            print(dummy.getUrl)
+            print(dummy.getUrl(config.BLOCKCHAIN_CONNECT + '/api/status?q=getInfo'))
+            print(dummy.RESULTS)
         elif DUMMY_READ: 
             config.BLOCKCHAIN_SERVICE = 'dummy'
             from src.interfaces import dummy 
             dummy._restoreOutputFromFile()
-            dummy._wrapUrlGet(dummy, dummy._restoreOutput)
-        global handler
-        handler = PaymentHandler(database=database, wallet=pypay_wallet)
+            dummy._wrapGetUrl(dummy._restoreOutput)
         global api_serv
         api_serv = api.API()
         api_serv.serve_forever(handler)
