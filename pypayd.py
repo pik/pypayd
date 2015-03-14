@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--rpc-port', type=int, help='port on which to provide API access')
     parser_wallet = subparsers.add_parser('wallet', help='access pypayd wallet from command-line')
     parser_wallet.add_argument("--from-mnemonic", help="load wallet info from mnemonic passphrase")
-    parser_wallet.add_argument("--mnemonic-parser", help="specify the mnemonic interface to load")
+    parser_wallet.add_argument("--mnemonic-type", help="specify the mnemonic interface to load")
     parser_wallet.add_argument("--from-file", help="load wallet info from specified file", nargs= '?', const=config.DEFAULT_WALLET_FILE)
     parser_wallet.add_argument("--decrypt-pw", help="password to decrypt wallet file")
     parser_wallet.add_argument("--from-entropy", help="load wallet from entropy")
@@ -105,8 +105,7 @@ if __name__ == '__main__':
         if not (args.from_mnemonic or args.from_file): 
             exitPyPay("No arguments provided for wallet, Exiting...")
         if args.from_mnemonic:
-            print(dir(wallet), "PPP\m")
-            pypay_wallet = wallet.PyPayWallet.fromMnemonic(args.mnemonic)  
+            pypay_wallet = wallet.PyPayWallet.fromMnemonic(args.from_mnemonic)  
         elif args.from_file:     
             pypay_wallet = wallet.PyPayWallet.fromEncryptedFile(password= (args.decrypt_pw or config.DEFAULT_WALLET_PASSWORD), file_name=os.path.join(config.DATA_DIR, args.from_file))
         if not pypay_wallet: exitPyPay("Unable to load wallet, Exiting...")

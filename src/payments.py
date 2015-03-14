@@ -32,7 +32,7 @@ class PaymentHandler(object):
     #One particular aspect of current transaction handling is that order's are not given a block_number; on creation, for an order to be filled #a payment must be received within a certain time - in otherwords Pypay does not check if the payment was made prior to order creation - #this may be convenient in certain cases (i.e. resubmitting an order to validate an invalid payment), the major drawback is that addresses #that are used for other functions should NOT be used as payment addresses
     #Todo - Add a configureable flag to disable this behaviour
     def __init__(self, database, wallet, bitcoin_interface_name= None): 
-        self.locks = {'order': threading.Lock() }
+        self.locks = {'order': threading.Lock(), 'polling':threading.Lock()}
         self.polling = {'addresses': [], 'last_updated': 0}
         self.db = database
         self.wallet = wallet
@@ -93,12 +93,13 @@ class PaymentHandler(object):
     #Add socketio listener option for locally hosted insight-api
     def pollActiveAddresses(self):
         '''Polling for inbound transactions to acvie address'''
-        self.current_block = bitcoin_interface.getInfo()['info']['blocks']
-        self.updateActiveAddresses()
-        logging.info("Current block is %s polling %i active addresses" %(self.current_block, len(self.polling['addresses']) ))
-        #No locks here, since _run() is locked atm.. We could thread this but it doesn't seem important.  
-        for addr in self.polling['addresses']: 
-            self.pollAddress(addr)
+        with self.locks['polling']: 
+            self.current_block = bitcoin_interface.getInfo()['info']['blocks']
+            self.updateActiveAddresses()
+            logging.info("Current block is %s polling %i active addresses" %(self.current_block, len(self.polling['addresses']) ))
+            #No locks here, since _run() is locked atm.. We could thread this but it doesn't seem important.  
+            for addr in self.polling['addresses']: 
+                self.pollAddress(addr)
         
     def processTxIn(self, receiving_address, tx): 
         '''This method handles transactions inbound to active addresses '''

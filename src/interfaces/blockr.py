@@ -89,7 +89,7 @@ def getTxInfo(tx_hash):
         }
     return None
 
-def sourceAddressesFromTX(self, tx_full): 
+def sourceAddressesFromTX(tx_full): 
     '''Return source (outbound) addresses for a bitcoin tx'''
     return [addressForPubKey(i['scriptSig']['asm'].split(" ")[1]) for i in tx_full['vin']]
     

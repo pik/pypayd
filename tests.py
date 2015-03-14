@@ -108,7 +108,8 @@ class PyPayState(unittest.TestCase):
         config.DEFAULT_CURRENCY = 'USD'
         config.MAX_LEAF_TX = 999
         config.DEFAULT_TICKER = 'dummy'
-        config.POLLING_DELAY = 60
+        config.POLLING_DELAY = 30
+        config.DB = "tests_pypayd.db"
         #setup
         pypay_wallet = wallet.PyPayWallet.fromHwif(pub_hwif_test)
         database = db.PyPayDB(os.path.join("", "pypayd_tests.db"))
