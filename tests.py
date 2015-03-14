@@ -43,7 +43,7 @@ wallet_file_name="test_wallet.txt"
 
 class WalletTests(unittest.TestCase): 
     def tearDownClass(): 
-        os.remove(os.path.join("", wallet_file_name))
+        os.remove(os.path.join(config.DATA_DIR, wallet_file_name))
         
     def test1_WalletCounterWallet(self): 
         wal = PyPayWallet.fromMnemonic(mnemonic, mnemonic_type="counterwalletseed")
@@ -58,12 +58,12 @@ class WalletTests(unittest.TestCase):
 
     def test3_ToEncryptedFile(self): 
         wal= PyPayWallet.fromHwif(priv_hwif_main, netcode='BTC')
-        self.assertIsNotNone(wal.toEncryptedFile(test_pw, file_dir = "", file_name= wallet_file_name, store_private=False))
+        self.assertIsNotNone(wal.toEncryptedFile(test_pw, file_name= wallet_file_name, store_private=False))
         wal.keypath = wallet.KeyPath('0/11/11')
-        self.assertIsNot(wal.toEncryptedFile(test_pw, file_dir ="", file_name= wallet_file_name, store_private=True, force=True), 0)
+        self.assertIsNot(wal.toEncryptedFile(test_pw, file_name= wallet_file_name, store_private=True, force=True), 0)
   
     def test4_FromEncryptedFile(self): 
-        wal = PyPayWallet.fromEncryptedFile(test_pw,file_dir ="", file_name=wallet_file_name, netcode='BTC')
+        wal = PyPayWallet.fromEncryptedFile(test_pw, file_name=wallet_file_name, netcode='BTC')
         self.assertEqual(wal.hwif(as_private=True), priv_hwif_main)
         self.assertEqual(str(wal.keypath), '0/11/11')
         
@@ -88,6 +88,8 @@ class WalletTests(unittest.TestCase):
 class BlockchainInterfaces(unittest.TestCase): pass
 
 headers = {'content-type': 'application/json'}
+DUMMY_RECORD = False
+DUMMY_READ = False
 
 class PyPayState(unittest.TestCase):
 
@@ -110,11 +112,23 @@ class PyPayState(unittest.TestCase):
         config.DEFAULT_TICKER = 'dummy'
         config.POLLING_DELAY = 30
         config.DB = "tests_pypayd.db"
+        config.DATA_DIR = "tests"
         #setup
         pypay_wallet = wallet.PyPayWallet.fromHwif(pub_hwif_test)
-        database = db.PyPayDB(os.path.join("", "pypayd_tests.db"))
+        database = db.PyPayDB(os.path.join(config.DATA_DIR, "pypayd_tests.db"))
         database._dropAllTables()
         database._initTables()
+        #dummy recorder
+        global dummy
+        if DUMMY_RECORD: 
+            config.BLOCKCHAIN_SERVICE = 'dummy'
+            from src.interfaces import dummy 
+            dummy._wrapUrlGet(dummy, dummy._recordOutput)
+        elif DUMMY_READ: 
+            config.BLOCKCHAIN_SERVICE = 'dummy'
+            from src.interfaces import dummy 
+            dummy._restoreOutputFromFile()
+            dummy._wrapUrlGet(dummy, dummy._restoreOutput)
         global handler
         handler = PaymentHandler(database=database, wallet=pypay_wallet)
         global api_serv
@@ -128,8 +142,10 @@ class PyPayState(unittest.TestCase):
     def tearDownClass():
         api_serv.server.stop()
         handler.db.con.close()
-        handler.db.con_ro.close() 
-        os.remove(os.path.join("", "pypayd_tests.db"))
+        handler.db.con_ro.close()
+        if DUMMY_RECORD: 
+            dummy._writeRecorderToFile() 
+        os.remove(os.path.join(config.DATA_DIR, "pypayd_tests.db"))
     
     def test0_APIExceptions(self): 
         payload = {'id': 0, 'params': {"foo": "bar"}, 'jsonrpc': '2.0', 'method': 'create_order'}

@@ -29,9 +29,9 @@ class PyPayWallet(BIP32Node):
         return cls.from_master_secret(seed)
         
     def toEncryptedFile(self, password, file_dir=None, file_name=None, store_private=False, force=False): 
-        if not file_dir: 
+        if file_dir is None: 
             file_dir = config.DATA_DIR
-        if not file_name: 
+        if file_name is None: 
             file_name = config.DEFAULT_WALLET_FILE
         wallet = json.dumps({ "keypath": self.keypath, "pubkey": self.hwif(), "privkey": (self.hwif(True) if (self.is_private() and store_private ) else None) })
         data = encrypt(password, wallet)
@@ -47,7 +47,11 @@ class PyPayWallet(BIP32Node):
         return result
         
     @classmethod
-    def fromEncryptedFile(cls, password, file_dir=config.DATA_DIR, file_name=config.DEFAULT_WALLET_FILE, netcode=None): 
+    def fromEncryptedFile(cls, password, file_dir=None, file_name=None, netcode=None): 
+        if file_dir is None: 
+            file_dir = config.DATA_DIR
+        if file_name is None: 
+            file_name = config.DEFAULT_WALLET_FILE
         with open(os.path.join(file_dir, file_name), 'rb') as rfile: 
             data = rfile.read() #read with os?
         wallet = json.loads(decrypt(password, data).decode('utf-8'))

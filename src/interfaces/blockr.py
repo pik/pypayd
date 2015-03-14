@@ -23,7 +23,8 @@ def getInfo():
     if 'status' in result and result['status'] == 'success':
         return {
             "info": {
-                "blocks": result['data']['last_block']['nb']
+                "blocks": result['data']['last_block']['nb'],
+                "difficulty": result['data']['last_block']['difficulty']
             }
         }
     return result

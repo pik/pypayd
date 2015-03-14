@@ -42,6 +42,7 @@ class PaymentHandler(object):
         exec("from .interfaces import %s" %bitcoin_interface_name) #instead of 6 lines of importlib
         global bitcoin_interface
         bitcoin_interface = eval(bitcoin_interface_name)
+        bitcoin_interface.setHost() 
         
     def checkPriceInfo(self):
         return ticker.getPrice()

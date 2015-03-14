@@ -1,29 +1,46 @@
 import logging
+import addict
+import requests
+import json
+import os
+from .. import config
+RESULTS = { 'getUrl': {} }
 
-def getUrl(request_string):
-    return requests.get(request_string).json()
-
-def setHost():
-    if config.LOCAL_BLOCKCHAIN and config.BLOCKCHAIN_CONNECT: pass
-    elif config.LOCAL_BLOCKCHAIN:
-        config.BLOCKCHAIN_CONNECT = ('http://localhost:3001' if config.TESTNET else 'http://localhost:3000')
-    else: 
-        config.BLOCKCHAIN_CONNECT = ("https://test-insight.bitpay.com/" if config.TESTNET else "https://insight.bitpay.com/")
+from .insight import *
     
-def check():
-    return True
+def _recordOutput(func):
+    def call(*args, **kwargs):
+        res = func(*args, **kwargs)
+        if args: 
+            RESULTS[func.__name__][".".join(args)] = res
+        else: 
+            RESULTS[func.__name__] = res
+        return res
+    return call
+
+def _restoreOutput(func): 
+    def call(*args, **kwargs):
+        if args: 
+            res = RESULTS[func.__name__][".".join(args)]
+        else: 
+            res = RESULTS[func.__name__]
+        return res
+    return call
+
+def _wrapUrlGet(module, wrapper): 
+    module.__dict__['getUrl'] = wrapper(getUrl) 
+            
+def _writeRecorderToFile(filename=None, path=None): 
+    if not filename: 
+        filename = "dummy_recorder.json"
+    with open(os.path.join(path or config.DATA_DIR, filename), 'w') as wfile:
+        print(RESULTS) 
+        json.dump(RESULTS, wfile)
+
+def _restoreOutputFromFile(filename=None, path=None): 
+    global RESULTS
+    if not filename: 
+        filename = "dummy_recorder.json"
+    with open(os.path.join(path or config.DATA_DIR, filename), 'r') as wfile:
+        RESULTS = json.load(wfile)
     
-def getInfo():
-    return getUrl(config.BLOCKCHAIN_CONNECT + '/api/status?q=getInfo')
-
-def getUtxo(address):
-    return getUrl(config.BLOCKCHAIN_CONNECT + '/api/addr/' + address + '/utxo/')
-
-def getAddressInfo(address):
-    return getUrl(config.BLOCKCHAIN_CONNECT + '/api/addr/' + address + '/')
-
-def getTxInfo(tx_hash):
-    return getUrl(config.BLOCKCHAIN_CONNECT + '/api/tx/' + tx_hash + '/')
-
-def getBlockInfo(block_hash):
-    return getUrl(config.BLOCKCHAIN_CONNECT + '/api/block/' + block_hash + '/')
