@@ -9,14 +9,38 @@ import unittest
 import ast
 import logging
 import json
-'''
-class QRCode(unittest.TestCase):
-    def test_qr(self):
-        address = "1HB5XMLmzFVj8ALj6mfBsbifRoD4miY36v"
-        #assertDoesNotRaise(qr.bitcoinqr(address)) 
-        #get QR from blockchain.info assert is equivalent 
-'''
+import subprocess as sp
+from base64 import b64decode
+from src import qr
+#Move all Test Constants to test_config
+from test_config import *
 
+#There appears to be only one up-to-date python library for decoding QRCodes
+#It does not have an automated install, it is python2 only and it depends on Zbars
+#So just test using checkout_put w/ Zbars or skip test if Zbars does not exist. 
+
+class QRCode(unittest.TestCase):
+    
+    def test_gen_qr(self):
+        payload_in = "1HB5XMLmzFVj8ALj6mfBsbifRoD4miY36v"
+        qr_image = qr.bitcoinqr(payload_in)
+        #convert from web to img form
+        qr_image = qr_image.replace("data:image/png;base64,", '', 1)
+        qr_image = b64decode(qr_image.encode('utf-8'))
+        with open("tests/qr_test.png", "wb") as wfile:
+            wfile.write(qr_image) 
+        try:
+            payload_out = sp.check_output(['zbarimg', '-q', 'tests/qr_test.png'])
+            self.assertEqual(payload_out.decode('utf-8').rstrip('\n'), "QR-Code:bitcoin:" + payload_in)
+        except FileNotFoundError: 
+            print("zbarimg not found skipping qr test")
+            
+    def setUpClass(): 
+        try: 
+            sp.check_output(['zbarimg', '-h'])
+        except FileNotFoundError: 
+            unittest.skip(QRCode.test_gen_qr)
+                
 class PriceInfoTests(unittest.TestCase): 
     
     def testDummyTicker(self): 
@@ -32,15 +56,7 @@ class PriceInfoTests(unittest.TestCase):
         btc_price, last_updated = priceinfo.coindeskTicker()
         self.assertTrue((time.time() - float(last_updated) < 60))
         self.assertTrue(float(btc_price) > 0)
-
-mnemonic= "like just love know never want time out there make look eye"
-priv_hwif_main = "xprv9s21ZrQH143K2jhRQJezi4Zw33cwbUUPvJEY4oAEXzzsBT6SvPziuLg1wLyk8aFnB3m3sGqHzD5smZgE4DToj7Pk77dbVy9oWKVDb2b8nVg"
-pub_hwif_main = 'xpub661MyMwAqRbcFDmtWLC15CWfb5TRzwCFHXA8sBZr6LXr4FRbTwJyT8zVndatFTL3nGfwyNi6AxhWF5sazTfKXWWZLzRBsAkJ2dykobXC9No'
-pub_hwif_test = 'tpubD6NzVbkrYhZ4X1xjxXB6H7r2vCZ5zKhJq9kSDjczSFHjoY6JYAA4bafL2fffmxHHaBCraxDxi4XYwGNCPKWZQwxrQbAVYhQXcbaAZaJhwBc'
-test_pw = "test"
-addresses = {"0/0/1": "1BxhLe9ikyAWrL89uV2q8tFF3TtyxuKKX4", "0/0/2": "1ZEofWQUcqSKaKcofPTBujZaUDEmKLeAL", "0/1/1": "13z2Qj2adQMTVyHFKFpeWqCxMHqrhx5cAo"}
-wallet_file_name="test_wallet.txt"
-
+        
 class WalletTests(unittest.TestCase): 
     def tearDownClass(): 
         os.remove(os.path.join(config.DATA_DIR, wallet_file_name))
@@ -87,10 +103,6 @@ class WalletTests(unittest.TestCase):
 
 class BlockchainInterfaces(unittest.TestCase): pass
 
-headers = {'content-type': 'application/json'}
-DUMMY_RECORD = False
-DUMMY_READ = False
-
 class PyPayState(unittest.TestCase):
 
     def setUpClass(): 
@@ -126,9 +138,6 @@ class PyPayState(unittest.TestCase):
             config.BLOCKCHAIN_SERVICE = 'dummy'
             from src.interfaces import dummy 
             dummy._wrapGetUrl(dummy._recordOutput)
-            print(dummy.getUrl)
-            print(dummy.getUrl(config.BLOCKCHAIN_CONNECT + '/api/status?q=getInfo'))
-            print(dummy.RESULTS)
         elif DUMMY_READ: 
             config.BLOCKCHAIN_SERVICE = 'dummy'
             from src.interfaces import dummy 

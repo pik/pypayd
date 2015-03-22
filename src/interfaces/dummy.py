@@ -1,5 +1,4 @@
 import logging
-import addict
 import requests
 import json
 import os
@@ -33,16 +32,12 @@ def _restoreOutput(func):
 def _wrapGetUrl(wrapper): 
     insight.__dict__['getUrl'] = wrapper(insight.getUrl) 
             
-def _writeRecorderToFile(filename=None, path=None): 
-    if not filename: 
-        filename = "dummy_recorder.json"
+def _writeRecorderToFile(filename="dummy_recorder.json", path=None): 
     with open(os.path.join(path or config.DATA_DIR, filename), 'w') as wfile:
         json.dump(RESULTS, wfile)
 
-def _restoreOutputFromFile(filename=None, path=None): 
+def _restoreOutputFromFile(filename="dummy_recorder.json", path=None): 
     global RESULTS
-    if not filename: 
-        filename = "dummy_recorder.json"
     with open(os.path.join(path or config.DATA_DIR, filename), 'r') as wfile:
         RESULTS = json.load(wfile)
     
