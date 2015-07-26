@@ -11,5 +11,5 @@ wallet_file_name="test_wallet.txt"
 headers = {'content-type': 'application/json'}
 
 #test-modes
-DUMMY_RECORD = False
-DUMMY_READ = True
+DUMMY_RECORD = True
+DUMMY_READ = False
