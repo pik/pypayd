@@ -36,15 +36,18 @@ LOG = None
 MAX_LOG_SIZE = 16*1024*1024
 
 UPDATE_ON_CONFIRM = 6 #can also take a list, such as [6, 20, 100]
-STATE = {"last_order_updates": {"order_id":None, "timestamp": None}}
 DATA_DIR = ""
 DB = None
 KEYPATH = None
 LAST_USED_KEYPATH = None
+RPC_USER = 'user'
+RPC_PASSWORD= 'password'
+
+# INTERNAL
+STATE = {"last_order_updates": {"order_id":None, "timestamp": None}}
+
+# UNUSED
 ZMQ_BIND = None
 ZMQ_FEED = False
 SOCKETIO_BIND = None
 SOCKETIO_FEED = False
-RPC_USER = 'user'
-RPC_PASSWORD= 'password'
-

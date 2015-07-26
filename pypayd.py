@@ -10,6 +10,12 @@ from configobj import ConfigObj
 from src import wallet, db, payments, api, config
 from ast import literal_eval
 
+def try_type_eval(val):
+    try:
+        return literal_eval(val)
+    except:
+        return val
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='pypayd', description='A small daemon for processing bitcoin payments')
     subparsers = parser.add_subparsers(dest='action', help='available actions')
@@ -63,7 +69,7 @@ if __name__ == '__main__':
     for field, value in conf['Default'].items():
         try:
             if field.upper() in config.__dict__.keys():
-                config.__dict__[field.upper()] = (literal_eval(value))
+                config.__dict__[field.upper()] = (try_type_eval(value))
         except:
             print("Error handling config file field %s, %s" %(field, value))
 
