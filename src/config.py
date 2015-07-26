@@ -12,11 +12,11 @@ DEFAULT_TESTNET_DB = "paypayd_testnet.db"
 RPC_HOST ='127.0.0.1'
 RPC_PORT = 3080
 VERSION = 0.1
-AUTH_REQUIRED = False
+AUTH_REQUIRED = True
 #Blockchain
 TESTNET = True
 BLOCKCHAIN_CONNECT = 'http://localhost:3001' #'https://test-insight.bitpay.com' #None
-LOCAL_BLOCKCHAIN = True
+LOCAL_BLOCKCHAIN = False
 BLOCKCHAIN_SERVICE = 'insight'
 #generate a new address for every order if gen_new == True
 GEN_NEW = False
