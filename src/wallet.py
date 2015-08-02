@@ -1,71 +1,75 @@
 from pycoin.key.BIP32Node import *
 from . import config
-from simplecrypt import encrypt, decrypt 
+from simplecrypt import encrypt, decrypt
 from .interfaces.counterwalletseed import mnemonicToEntropy
-import time 
+import time
 import json
 import os
 """
-Wallet wrapper around the Pycoin implementation. (Pycoin is a little heavier of a dependency than we need, but it already supports python3 and keypath-address handling). 
+Wallet wrapper around the Pycoin implementation. (Pycoin is a little heavier of a dependency than we need, but it already supports python3 and keypath-address handling).
 The savePrivate() and savePublic() methods will save the public and/or private keys available to this wallet in an encrypted file using simplecrypt. Note: You do not need to have the privatekeys to generate new addresses.
-The MasterKey or the PublicKey for the branch specified in the configfile must be loaded at startup, branches take default numbers. Currently hardened branch's are incremented to none-hardened ones (since hardened branches require a privatekey, which you hopefully aren't loading). 
+The MasterKey or the PublicKey for the branch specified in the configfile must be loaded at startup, branches take default numbers. Currently hardened branch's are incremented to none-hardened ones (since hardened branches require a privatekey, which you hopefully aren't loading).
 """
 
 NETCODES = {"mainnet": "BTC", "testnet": "XTN"}
 #To Do: enable autosweep, privkey_mode only
 #sweep address function
 #sweep branch function
-    
+
 class PyPayWallet(BIP32Node):
-    
+
     @classmethod
-    def fromEntropy(cls, seed): 
-        return cls.from_master_secret(seed)
-    
+    def fromEntropy(cls, seed, testnet=False):
+        if not netcode:
+            netcode = NETCODES['testnet' if config.TESTNET else 'mainnet']
+        return cls.from_master_secret(seed, netcode)
+
     @classmethod
-    def fromMnemonic(cls, mnemonic, mnemonic_type = "electrumseed"):
+    def fromMnemonic(cls, mnemonic, mnemonic_type = "electrumseed", netcode=None):
+        if not netcode:
+            netcode = NETCODES['testnet' if config.TESTNET else 'mainnet']
         exec("from .interfaces.%s import mnemonicToEntropy" %mnemonic_type)
-        seed = mnemonicToEntropy(mnemonic) 
-        return cls.from_master_secret(seed)
-        
-    def toEncryptedFile(self, password, file_dir=None, file_name=None, store_private=False, force=False): 
-        if file_dir is None: 
+        seed = mnemonicToEntropy(mnemonic)
+        return cls.from_master_secret(seed, netcode=netcode)
+
+    def toEncryptedFile(self, password, file_dir=None, file_name=None, store_private=False, force=False):
+        if file_dir is None:
             file_dir = config.DATA_DIR
-        if file_name is None: 
+        if file_name is None:
             file_name = config.DEFAULT_WALLET_FILE
         wallet = json.dumps({ "keypath": self.keypath, "pubkey": self.hwif(), "privkey": (self.hwif(True) if (self.is_private() and store_private ) else None) })
         data = encrypt(password, wallet)
         target = os.path.join(file_dir, file_name)
-        if os.path.isfile(target) and not force: 
+        if os.path.isfile(target) and not force:
             return False
         try:
-            with open(target, 'wb') as wfile: 
+            with open(target, 'wb') as wfile:
                 result = wfile.write(data)
                 assert(len(data) == result)
-        except: 
+        except:
             return 0
         return result
-        
+
     @classmethod
-    def fromEncryptedFile(cls, password, file_dir=None, file_name=None, netcode=None): 
-        if file_dir is None: 
+    def fromEncryptedFile(cls, password, file_dir=None, file_name=None, netcode=None):
+        if file_dir is None:
             file_dir = config.DATA_DIR
-        if file_name is None: 
+        if file_name is None:
             file_name = config.DEFAULT_WALLET_FILE
-        with open(os.path.join(file_dir, file_name), 'rb') as rfile: 
+        with open(os.path.join(file_dir, file_name), 'rb') as rfile:
             data = rfile.read() #read with os?
         wallet = json.loads(decrypt(password, data).decode('utf-8'))
-        return cls.from_hwif((wallet.get('privkey') or wallet.get('pubkey')), keypath=wallet.get('keypath'), netcode=netcode)
-    
+        return cls.fromHwif((wallet.get('privkey') or wallet.get('pubkey')), keypath=wallet.get('keypath'), netcode=netcode)
+
     @classmethod
-    def fromHwif(cls, b58_str, keypath=None, netcode=None): 
+    def fromHwif(cls, b58_str, keypath=None, netcode=None):
         return cls.from_hwif(b58_str, keypath, netcode)
     #for format compatibility
     @classmethod
-    def from_hwif(cls, b58_str, keypath=None, netcode = None): 
+    def from_hwif(cls, b58_str, keypath=None, netcode = None):
          node = BIP32Node.from_hwif(b58_str)
          return cls.fromBIP32Node(node, keypath, netcode)
-         
+
     #Go figure why BIP32Node won't instantiate from an instance of itself...
     @classmethod
     def fromBIP32Node(cls, W, keypath=None, netcode = None):
@@ -74,43 +78,43 @@ class PyPayWallet(BIP32Node):
         netcode = netcode if netcode else NETCODES.get(("mainnet" if not config.TESTNET else "testnet"))
         return PyPayWallet((netcode or W._netcode), W._chain_code, W._depth, W._parent_fingerprint, W._child_index, secret_exponent=secret_exponent, public_pair=public_pair, keypath= (keypath or W.__dict__.get('keypath')))
 
-    def __init__(self, *args, keypath=None, testnet=config.TESTNET,**kwargs): 
+    def __init__(self, *args, keypath=None, testnet=config.TESTNET,**kwargs):
         if not keypath:
             keypath = config.KEYPATH or config.DEFAULT_KEYPATH
         self.keypath = KeyPath(keypath)
         BIP32Node.__init__(self, *args, **kwargs)
-        
+
     #return the public address for the current path
-    def getCurrentAddress(self): 
+    def getCurrentAddress(self):
         return self.subkey_for_path(str(self.keypath)).address()
     #return public address after incrementing path by 1
     def getNewAddress(self):
-        self.keypath.incr() 
-        return self.getCurrentAddress() 
+        self.keypath.incr()
+        return self.getCurrentAddress()
 
-class KeyPath(list): 
+class KeyPath(list):
     """An address keypath object with an increment function"""
     def __init__(self, l, *args):
         if type(l) is str: l = l.split('/')
         elif not l: l =[]
         list.__init__(self, l,*args)
     #keeping __repr__ as a list for now
-    def __repr__(self): 
+    def __repr__(self):
         return "KeyPath(%s)" %self
-    def __str__(self): 
+    def __str__(self):
         return str('/'.join([str(i) for i in self]))
     def incr(self, x=1, pos=-1):
         self[pos] = ''.join([l for l in str(self[pos]) if l.isdigit()])
         self[pos] = int(self[pos]) + x if int(self[pos]) >= 0 else int(self[pos]) - x
-    def set_pos(self, x, pos): 
+    def set_pos(self, x, pos):
         self[pos] = int(x)
-        
+
 #test
-if __name__ == '__main__': 
-    def dmc(x, y): 
+if __name__ == '__main__':
+    def dmc(x, y):
         x.__dict__[y.__name__] = y.__get__(x, x.__class__)
 
     W = PyPayWallet.fromEncryptedFile("foobar")
     s = KeyPath('0H/22/3902HASDAS2')
-    
+
 

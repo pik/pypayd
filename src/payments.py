@@ -111,6 +111,7 @@ class PaymentHandler(object):
         timestamp = time.time()
         tx_full = bitcoin_interface.getTxInfo(tx['txid'])
         tx_record = self.db.getPayments({"txid": tx['txid']})
+        amount = normalizeAmount(tx['amount'])
         if tx_record:
             tx_record = tx_record[0]
             availableCheckPoints = lambda conf: len([i for i in ensureList(config.UPDATE_ON_CONFIRM) if i > conf])
@@ -132,9 +133,9 @@ class PaymentHandler(object):
                 raise ProcessingError("Found multiple order entries for a single use address")
             else:
                 order = orders[0]
+            tx_special_digits = -1
         #otherwise extract digits 4-7
         if not order:
-            amount = normalizeAmount(tx['amount'])
             tx_special_digits = extractSpecialDigits(amount)
             order = self.db.getOrders({'special_digits': tx_special_digits, 'receiving_address': receiving_address})
         try:
@@ -233,7 +234,8 @@ class PaymentHandler(object):
         try:
             result = self.db.rquery("select * from addresses where (receiving_address = '%s')" %current_address)
         #If table is empty
-        except: result = None
+        except:
+            result = []
         if not result:
              self.addAddress(current_address, -1 if gen_new else 1)
              return current_address, -1 if gen_new else 1

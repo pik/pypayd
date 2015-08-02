@@ -7,7 +7,7 @@ DEFAULT_WALLET_FILE = 'wallet.txt'
 DEFAULT_WALLET_PASSWORD = "foobar"
 DB = None
 DEFAULT_DB = "pypayd.db"
-DEFAULT_TESTNET_DB = "paypayd_testnet.db"
+DEFAULT_TESTNET_DB = "pypayd_testnet.db"
 #Pypay server settings
 RPC_HOST ='127.0.0.1'
 RPC_PORT = 3080

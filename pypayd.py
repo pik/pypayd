@@ -133,7 +133,7 @@ if __name__ == '__main__':
         if not payment_handler:
              exitPyPay("Unable to start Payment Handler, Exiting...")
         #logging.info("Testing priceinfo ticker: %s BTC/USD" %(payment_handler.checkPriceInfo()))
-        logging.info("Testing Blockchain connection %s" %str(payment_handler.checkBlockchainService()))
+        payment_handler.checkBlockchainService()
         api_serv = api.API()
         try:
             logging.info("Payment Handler loaded, starting auto-poller..")
@@ -162,6 +162,3 @@ if __name__ == '__main__':
                 pass
             else:
                 pypay_wallet.toEncryptedFile(password = args.encrypt_pw, file_name = (args.to_file or config.DEFAULT_WALLET_FILE), store_private = args.output_private, force=args.overwrite)
-
-
-
