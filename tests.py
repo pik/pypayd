@@ -57,6 +57,11 @@ class PriceInfoTests(unittest.TestCase):
         self.assertTrue((time.time() - float(last_updated) < 60))
         self.assertTrue(float(btc_price) > 0)
 
+    def testBitcoinaverageglobalaverageTicker(self):
+        btc_price, last_updated = priceinfo.bitcoinaverageglobalaverageTicker()
+        self.assertTrue((time.time() - float(last_updated) < 60))
+        self.assertTrue(float(btc_price) > 0)
+
 class WalletTests(unittest.TestCase):
     def tearDownClass():
         os.remove(os.path.join(config.DATA_DIR, wallet_file_name))

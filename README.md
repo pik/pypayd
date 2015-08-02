@@ -10,6 +10,16 @@ installation
 ---------------------
 For now the recomended installation method is to use ```git clone https://github.com/pik/pypayd.git``` following that ```cd``` into the pypayd directory and execute ```pip install -r pip-requirements.txt```, with this you should be good to go (one thing to note is that in some cases APSW may require manual installation).
 
+configuration
+-------------
+You are able to configure pypayd via creating ```pypayd.conf``` file. Consult ```src/config.py``` for configuration values.
+
+#### currency exchange rates
+Currently there are three sources of live currency exehange rates available:
+- ```btcavga```: https://api.bitcoinaverage.com/ticker/global/all
+- ```bitstamp```: https://www.bitstamp.net/api/ticker
+- ```coindesk```: https://api.coindesk.com/v1/bpi/currentprice.json
+
 example usage
 -----------------
 Obtain an encrypted-file with a publickey on an offline server from a mnemonic:

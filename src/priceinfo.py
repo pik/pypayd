@@ -23,9 +23,15 @@ def coindeskTicker(currency='USD'):
     dataTime = calendar.timegm(time.strptime(data['time']['updated'], "%b %d, %Y %H:%M:%S %Z"))
     return dataPrice, dataTime
 
+def bitcoinaverageglobalaverageTicker(currency='USD'):
+    data = request.get('https://api.bitcoinaverage.com/ticker/global/all').json()
+    dataPrice = [currency]['rate']
+    dataTime = calendar.timegm(time.strptime(data[currency]['timestamp'], "%a, %d %b %Y %H:%M:%S %z"))
+    return dataPrice, dataTime
+
 class Ticker(object):
     def __init__(self, default_ticker=None, default_currency=None):
-        self.tickers = {'bitstamp': bitstampTicker, 'coindesk': coindeskTicker, 'dummy': ( lambda x: (350, time.time()) ) }
+        self.tickers = {'bitstamp': bitstampTicker, 'coindesk': coindeskTicker, 'btcavga': bitcoinaverageglobalaverageTicker, 'dummy': ( lambda x: (350, time.time()) ) }
         if not default_ticker:
             self.default_ticker = config.DEFAULT_TICKER
         if not default_currency:
