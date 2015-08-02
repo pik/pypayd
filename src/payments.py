@@ -108,6 +108,7 @@ class PaymentHandler(object):
         notes = []
         valid = True
         order = None
+        order_id = None
         timestamp = time.time()
         tx_full = bitcoin_interface.getTxInfo(tx['txid'])
         tx_record = self.db.getPayments({"txid": tx['txid']})
@@ -123,21 +124,19 @@ class PaymentHandler(object):
             else:
                 logging.debug("tx_record for txid %s exists, no updates to record" %tx_record['txid'])
             return True
-        #only one order per address, so just look up by address
-        if config.GEN_NEW:
+        #Look for an order by special_digits
+        tx_special_digits = extractSpecialDigits(amount)
+        orders = self.db.getOrders({'special_digits': tx_special_digits, 'receiving_address': receiving_address})
+        if not orders:
             orders = self.db.getOrders({'receiving_address': receiving_address})
-            tx_special_digits = 0
-            #config.GEN_NEW was changed during run-time and the order is not unique to the address
-            #This should probably raise on order-creation instead of here
-            if len(orders) > 1:
-                raise ProcessingError("Found multiple order entries for a single use address")
+            if len (orders) > 1:
+                valid = False
+                notes.append("Received payment but could not find an associated order entry")
             else:
                 order = orders[0]
-            tx_special_digits = -1
-        #otherwise extract digits 4-7
-        if not order:
-            tx_special_digits = extractSpecialDigits(amount)
-            order = self.db.getOrders({'special_digits': tx_special_digits, 'receiving_address': receiving_address})
+                tx_special_digits = -1
+        else:
+            order = orders[0]
         try:
             order = order[0]
             order_id=order['order_id']
