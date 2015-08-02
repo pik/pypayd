@@ -10,14 +10,14 @@ from hashlib import sha256
 
 def getUrl(request_string):
     return requests.get(request_string).json()
-    
+
 def setHost():
     config.BLOCKCHAIN_CONNECT = ('http://tbtc.blockr.io' if config.TESTNET else 'http://btc.blockr.io')
 
 #And fix this
 def check():
-    return getInfo() 
-    
+    return getInfo()
+
 def getInfo():
     result = getUrl(config.BLOCKCHAIN_CONNECT + '/api/v1/coin/info', )
     if 'status' in result and result['status'] == 'success':
@@ -80,7 +80,7 @@ def getTxInfo(tx_hash):
             'txid': tx_hash,
             'version': tx['data']['tx']['version'],
             'locktime': tx['data']['tx']['locktime'],
-            'blockhash': tx['data']['tx'].get('blockhash', None), 
+            'blockhash': tx['data']['tx'].get('blockhash', None),
             'confirmations': tx['data']['tx'].get('confirmations', None),
             'time': tx['data']['tx'].get('time', None),
             'blocktime': tx['data']['tx'].get('blocktime', None),
@@ -90,13 +90,15 @@ def getTxInfo(tx_hash):
         }
     return None
 
-def sourceAddressesFromTX(tx_full): 
+def sourceAddressesFromTX(tx_full):
     '''Return source (outbound) addresses for a bitcoin tx'''
     return [addressForPubKey(i['scriptSig']['asm'].split(" ")[1]) for i in tx_full['vin']]
-    
-#This can be replaced with the pycoin function 
-def addressForPubKey(pubkey_hex, testnet=None): 
-    if testnet is None: 
+
+#This can be replaced with the pycoin function
+_b58chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+def addressForPubKey(pubkey_hex, testnet=None):
+    if testnet is None:
         testnet = config.TESTNET
     ripehash = hashlib.new('ripemd160')
     step1 = unhexlify(pubkey_hex)
@@ -114,7 +116,7 @@ def addressForPubKey(pubkey_hex, testnet=None):
     return addr_58
 
 def encodeBase58(v):
-    long_value = int.from_bytes(v, 'big') 
+    long_value = int.from_bytes(v, 'big')
     result = ''
     while long_value >= 58:
         div, mod = divmod(long_value, 58)
