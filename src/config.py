@@ -43,6 +43,12 @@ LAST_USED_KEYPATH = None
 RPC_USER = 'user'
 RPC_PASSWORD= 'password'
 
+# Max difference between fetched price from ticker and current time, in seconds
+MAX_PRICE_TIME_GAP = 300
+
+# default interface for converting mnemonic to a BIP32 key
+DEFAULT_MNEMONIC_TYPE = "electrumseed"
+
 # INTERNAL
 STATE = {"last_order_updates": {"order_id":None, "timestamp": None}}
 

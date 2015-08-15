@@ -23,8 +23,16 @@ def extractSpecialDigits(amount):
         amount = D(str(amount)).quantize(D('.0000000'))
     return int(str(amount)[-4:])
 
-class ProcessingError(Exception):
-    pass
+    #Add socketio listener option for locally hosted insight-api
+    def pollActiveAddresses(self):
+        '''Polling for inbound transactions to active address'''
+        with self.locks['polling']:
+            self.current_block = bitcoin_interface.getInfo()['info']['blocks']
+            self.updateActiveAddresses()
+            logging.info("Current block is %s polling %i active addresses" %(self.current_block, len(self.polling['addresses']) ))
+            #No locks here, since _run() is locked atm.. We could thread this but it doesn't seem important.
+            for addr in self.polling['addresses']:
+                self.pollAddress(addr)
 
 class PaymentHandler(object):
     """The Payment Handler class - this basically handles all the payment logic connecting all the other interfaces (wallet, db, api, message_feed, blockchain_interface)
@@ -32,7 +40,7 @@ class PaymentHandler(object):
     #One particular aspect of current transaction handling is that order's are not given a block_number; on creation, for an order to be filled #a payment must be received within a certain time - in otherwords Pypay does not check if the payment was made prior to order creation - #this may be convenient in certain cases (i.e. resubmitting an order to validate an invalid payment), the major drawback is that addresses #that are used for other functions should NOT be used as payment addresses
     #Todo - Add a configureable flag to disable this behaviour
     def __init__(self, database, wallet, bitcoin_interface_name= None):
-        self.locks = {'order': threading.Lock(), 'polling':threading.Lock()}
+        self.locks = { 'order': threading.Lock(), 'polling': threading.Lock() }
         self.polling = {'addresses': [], 'last_updated': 0}
         self.db = database
         self.wallet = wallet
@@ -44,13 +52,6 @@ class PaymentHandler(object):
         bitcoin_interface = eval(bitcoin_interface_name)
         bitcoin_interface.setHost()
 
-    def checkPriceInfo(self):
-        return ticker.getPrice()
-
-    #fix blockchain service imports
-    def checkBlockchainService(self):
-        return bitcoin_interface.check()
-
     #Runs address polling for new payments
     def run(self):
         self.poller_thread = threading.Thread(target=self._run, daemon=True)
@@ -60,20 +61,42 @@ class PaymentHandler(object):
     def _run(self, polling_delay=config.POLLING_DELAY):
         while True:
             t = time.time()
+            #Fetch active address async, set last polled time
             self.pollActiveAddresses()
             time.sleep((config.POLLING_DELAY - (time.time() - t)))
+
+    def checkPriceInfo(self):
+        return ticker.getPrice()
+
+    #fix blockchain service imports
+    def checkBlockchainService(self):
+        return bitcoin_interface.check()
 
     def getPayments(self, bindings):
         payments = self.db.getPayments(bindings)
         return payments
 
-    def pollPayments(self, bindings):
+    def pollForPayments(self, bindings):
+        '''
+        API call to manually check for updates to an address.
+        - Deprecated -
+        '''
         if not bindings.get('receiving_address'):
             orders = self.db.getOrders(bindings)
-        bindings['receiving_address'] = orders[0]['receiving_address']
+            bindings['receiving_address'] = orders[0]['receiving_address']
         pollAddress(orders[0]['receiving_address'])
         time.sleep(.5)
         return getPayments(bindings)
+
+    def pollAddress(self, addr):
+        ''' Poll an address and process incoming transactions if they are available '''
+        logging.info('calling %s api for address info %s' %(self.bitcoin_interface_name, addr ) )
+        unspent_tx = bitcoin_interface.getUtxo(addr)
+        if unspent_tx:
+            logging.debug("Found %i utxo for address %s processing...", (len(unspent_tx), addr))
+        for tx in unspent_tx:
+            logging.debug("tx: %s", tx)
+            self.processTxIn(addr, tx)
 
     def updateActiveAddresses(self):
         '''If the database has been updated, refresh the list of active addresses'''
@@ -82,25 +105,6 @@ class PaymentHandler(object):
             addresses = self.db.rquery("select * from addresses where last_used > %s" %(time.time() - config.LEAF_POLL_LIFE))
             self.polling['addresses'] = [i['receiving_address'] for i in addresses]
             self.polling['last_updated'] = time.time()
-
-    def pollAddress(self, addr):
-        logging.info('calling %s api for address info %s' %(self.bitcoin_interface_name, addr ) )
-        unspent_tx = bitcoin_interface.getUtxo(addr)
-        if unspent_tx: logging.debug("Found %i utxo for address %s processing..." %(len(unspent_tx), addr))
-        for tx in unspent_tx:
-            logging.debug(("tx: ", tx))
-            self.processTxIn(addr, tx)
-
-    #Add socketio listener option for locally hosted insight-api
-    def pollActiveAddresses(self):
-        '''Polling for inbound transactions to acvie address'''
-        with self.locks['polling']:
-            self.current_block = bitcoin_interface.getInfo()['info']['blocks']
-            self.updateActiveAddresses()
-            logging.info("Current block is %s polling %i active addresses" %(self.current_block, len(self.polling['addresses']) ))
-            #No locks here, since _run() is locked atm.. We could thread this but it doesn't seem important.
-            for addr in self.polling['addresses']:
-                self.pollAddress(addr)
 
     def processTxIn(self, receiving_address, tx):
         '''This method handles transactions inbound to active addresses '''
@@ -172,13 +176,15 @@ class PaymentHandler(object):
         #feed.publishMessage("payments", "new", str(bindings))
         return True
 
-    def createOrder(self, amount, currency=config.DEFAULT_CURRENCY, item_number=None, order_id=None, gen_new = None):
+    def createOrder(self, amount, currency, item_number=None, order_id=None, gen_new = None):
         '''The main order creation method to which the api call is routed'''
+        if not currency:
+            currency = config.DEFAULT_CURRENCY
+        # gen_new can be True or False
         if gen_new is None:
             gen_new = config.GEN_NEW
-        #timestamp = time.time()
         #Try ret
-        btc_price = str(ticker.getPriceInBTC(amount, currency=currency))
+        btc_price = str(ticker.get_price_in_btc(amount, currency=currency))
         #if error: return error
         #special_digits are 0 on gen_new, we add them to the db but ignore them for the order, and return exact_amount: False
         with self.locks['order']:
@@ -223,9 +229,10 @@ class PaymentHandler(object):
     def getPaymentAddress(self, gen_new):
         '''
         Obtain a payment address
-           Set gen_new=True to create a new address irrespective of config settings
-           Note that max_tx is set form config an addresses max_tx is set from config.MAX_LEAF_TX at creation time -
-           a lower config.MAX_LEAF_TX value, will force gen_new - but a higher one will ignored if max_tx is already added to an entry.
+           Set gen_new=True to create a new address irrespective of config settings.
+           Note that max_tx is specified in config settings and an addresses max_tx entry is set from config.MAX_LEAF_TX at creation time.
+           A change which lowers the config.MAX_LEAF_TX value will force a new address to be created sooner
+           but a higher one will ignored if max_tx is already set on the database entry.
         '''
         #Currently a requested address or special digit will be marked as used independent of further errors with the order
         #This can be made atomic later, so i.e. a duplicate order_id won't increment special digits
