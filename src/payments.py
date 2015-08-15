@@ -124,28 +124,25 @@ class PaymentHandler(object):
             else:
                 logging.debug("tx_record for txid %s exists, no updates to record" %tx_record['txid'])
             return True
-        #Look for an order by special_digits
+        # Look for an order by special_digits
         tx_special_digits = extractSpecialDigits(amount)
         orders = self.db.getOrders({'special_digits': tx_special_digits, 'receiving_address': receiving_address})
-        if not orders:
-            orders = self.db.getOrders({'receiving_address': receiving_address})
-            if len (orders) > 1:
-                valid = False
-                notes.append("Received payment but could not find an associated order entry")
-            else:
-                order = orders[0]
-                tx_special_digits = -1
-        else:
-            order = orders[0]
+        # If Orders not found by special_digits see if it's singular
         try:
-            order = order[0]
-            order_id=order['order_id']
-        except:
-            order_id=None
-            order = {}
+            if not orders:
+                orders = self.db.getOrders({'receiving_address': receiving_address})
+                # If the order is not gen_new and this should fail
+                assert(len(orders) == 1)
+                assert(orders[0]['special_digits'] == -1)
+                tx_special_digits = -1
+            order = orders[0]
+            order_id = order['order_id']
+        except AssertionError:
             valid = False
+            order = {}
+            order_id = None
             notes.append("order not found for special digits %i" %tx_special_digits)
-        else:
+        if valid:
             #A matching order has been found - verify other validity parameters
             if not amount >=  D(order['btc_price']):
                 valid = False

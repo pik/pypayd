@@ -24,8 +24,8 @@ def coindeskTicker(currency='USD'):
     return dataPrice, dataTime
 
 def bitcoinaverageglobalaverageTicker(currency='USD'):
-    data = request.get('https://api.bitcoinaverage.com/ticker/global/all').json()
-    dataPrice = [currency]['rate']
+    data = requests.get('https://api.bitcoinaverage.com/ticker/global/all').json()
+    dataPrice = data[currency]['last']
     dataTime = calendar.timegm(time.strptime(data[currency]['timestamp'], "%a, %d %b %Y %H:%M:%S %z"))
     return dataPrice, dataTime
 

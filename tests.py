@@ -49,17 +49,17 @@ class PriceInfoTests(unittest.TestCase):
 
     def testBitstampTicker(self):
         btc_price, last_updated = priceinfo.bitstampTicker()
-        self.assertTrue((time.time() - float(last_updated) < 60))
+        self.assertTrue((time.time() - float(last_updated) < TOLERABLE_TICKER_DELAY))
         self.assertTrue(float(btc_price) > 0)
 
     def testCoindeskTicker(self):
         btc_price, last_updated = priceinfo.coindeskTicker()
-        self.assertTrue((time.time() - float(last_updated) < 60))
+        self.assertTrue((time.time() - float(last_updated) < TOLERABLE_TICKER_DELAY))
         self.assertTrue(float(btc_price) > 0)
 
     def testBitcoinaverageglobalaverageTicker(self):
         btc_price, last_updated = priceinfo.bitcoinaverageglobalaverageTicker()
-        self.assertTrue((time.time() - float(last_updated) < 60))
+        self.assertTrue((time.time() - float(last_updated) < TOLERABLE_TICKER_DELAY))
         self.assertTrue(float(btc_price) > 0)
 
 class WalletTests(unittest.TestCase):
@@ -67,7 +67,7 @@ class WalletTests(unittest.TestCase):
         os.remove(os.path.join(config.DATA_DIR, wallet_file_name))
 
     def test1_WalletCounterWallet(self):
-        wal = PyPayWallet.fromMnemonic(mnemonic, mnemonic_type="counterwalletseed")
+        wal = PyPayWallet.fromMnemonic(mnemonic, mnemonic_type="counterwalletseed", netcode = 'BTC')
         self.assertIsNotNone(wal)
         self.assertEqual(wal.hwif(as_private=True), priv_hwif_main)
 
@@ -130,6 +130,7 @@ class PyPayState(unittest.TestCase):
         config.POLLING_DELAY = 30
         config.DB = "tests_pypayd.db"
         config.DATA_DIR = "tests"
+        config.RPC_PORT = 3434
         #setup
         pypay_wallet = wallet.PyPayWallet.fromHwif(pub_hwif_test)
         database = db.PyPayDB(os.path.join(config.DATA_DIR, "pypayd_tests.db"))
@@ -213,7 +214,7 @@ class PyPayState(unittest.TestCase):
         self.assertEqual(res['amount'], 0.1140003)
         self.assertEqual(res['special_digits'], 3)
         self.assertEqual(res['order_id'], 'DUMMY_ORD_2')
-        self.assertEqual(res['block_number'], 325705)
+        self.assertEqual(res['block_number'], 530509)
         self.assertEqual(res['receiving_address'], 'mrUedhEhZzbmdSbmd41CxoTZuTVgrwdL7p')
         self.assertEqual(res['valid'], 1)
         self.assertEqual(ast.literal_eval(res['source_address'])[0], 'mudvdSecGyVyZA6QczmdPczyFavb7rfaTi')
@@ -250,7 +251,7 @@ class PyPayState(unittest.TestCase):
             self.assertEqual(tx['order_id'], order_id)
 
     def test6_GenNewAddress(self):
-        payload = {'id': 0, 'params': {'amount': 100.0, 'qr_code': False, 'gen_new': True}, 'jsonrpc': '2.0', 'method': 'create_order'}
+        payload = {'id': 0, 'params': {'amount': 100.0, 'qr_code': False, 'gen_new': True, 'order_id': 'DUMMY_ORD_3'}, 'jsonrpc': '2.0', 'method': 'create_order'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result']
         self.assertEqual(res['amount'], '0.286')
         self.assertEqual(res['exact_amount'], False)
@@ -267,16 +268,33 @@ class PyPayState(unittest.TestCase):
         self.assertEqual(res['max_tx'], config.MAX_LEAF_TX)
         self.assertTrue(res['special_digits'] > 0)
 
-    def test7_SpecialDigits(self): pass
+    def test7_OrderReceivedGenNew(self):
+        handler.pollActiveAddresses()
+        payload = {'id': 0, 'params': {'bindings':{'order_id': 'DUMMY_ORD_3'}}, 'jsonrpc': '2.0', 'method': 'get_orders'}
+        res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result'][0]
+        self.assertEqual(res['filled'], 'fb8c47b612edc808f532ee00f1171935b901607163b300c1283886a8448c2e83')
+        self.assertEqual(res['order_id'], 'DUMMY_ORD_3')
+        payload = {'id': 0, 'params': {'bindings':{'txid': 'fb8c47b612edc808f532ee00f1171935b901607163b300c1283886a8448c2e83'}}, 'jsonrpc': '2.0', 'method': 'get_payments'}
+        res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result'][0]
+        self.assertEqual(res['amount'], 0.286)
+        self.assertEqual(res['special_digits'], -1)
+        self.assertEqual(res['order_id'], 'DUMMY_ORD_3')
+        self.assertEqual(res['block_number'], 530515)
+        self.assertEqual(res['receiving_address'], 'miXzTXvkEsfVmkwMjLCHfXAjboodrgQQ9Z')
+        self.assertEqual(res['valid'], 1)
+        self.assertEqual(ast.literal_eval(res['source_address'])[0], 'mqsY54wR1Kx5ot1vA25DBi9LFJLCwrtw3k')
+        self.assertEqual(ast.literal_eval(res['notes']), [])
 
-    def test8_ArbitraryKeypath(self):
+    def test8_SpecialDigits(self): pass
+
+    def test9_ArbitraryKeypath(self):
         handler.wallet.keypath = wallet.KeyPath('0/11/11')
         payload = {'id': 0, 'params': {'amount': 100.0, 'qr_code': False, 'gen_new': False}, 'jsonrpc': '2.0', 'method': 'create_order'}
         res = requests.post( url, data=json.dumps(payload), headers=headers).json()['result']
         self.assertEqual(res['receiving_address'], 'n44GYHKzs8Ytd8cCdmzaxWpVLQpW8wo1gt')
         self.assertEqual(res['amount'], '0.2860001')
 
-    def test9_Polling(self): pass
+    def test10_Polling(self): pass
 
 if __name__ == '__main__':
     loader = unittest.TestLoader()
