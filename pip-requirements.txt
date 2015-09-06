@@ -1,4 +1,4 @@
-addict (0.2.7)
+addict
 CherryPy==3.6.0
 Flask==0.10.1
 Flask-HTTPAuth==2.3.0
@@ -8,13 +8,11 @@ Pillow==2.7.0
 Werkzeug==0.9.6
 appdirs==1.4.0
 #APSW may have to be installed manually depending on your sqlite configuration
-apsw==3.8.5-r1
+apsw
 configobj==5.0.6
 itsdangerous==0.24
 json-rpc==1.8.1
 pycoin==0.52
-pycrypto==2.6.1
 qrcode==5.1
 requests==2.5.1
-simple-crypt==3.0.2
 six==1.9.0

@@ -5,6 +5,7 @@ DEFAULT_TICKER = 'dummy'
 DEFAULT_CURRENCY = 'USD'
 DEFAULT_WALLET_FILE = 'wallet.txt'
 DEFAULT_WALLET_PASSWORD = "foobar"
+DEFAULT_MNEMONIC_TYPE = "electrumseed"
 DB = None
 DEFAULT_DB = "pypayd.db"
 DEFAULT_TESTNET_DB = "pypayd_testnet.db"

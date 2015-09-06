@@ -113,7 +113,7 @@ if __name__ == '__main__':
         if not (args.from_mnemonic or args.from_file):
             exitPyPay("No arguments provided for wallet, Exiting...")
         if args.from_mnemonic:
-            pypay_wallet = wallet.PyPayWallet.fromMnemonic(args.from_mnemonic)
+            pypay_wallet = wallet.PyPayWallet.fromMnemonic(args.from_mnemonic, args.mnemonic_type)
         elif args.from_file:
             pypay_wallet = wallet.PyPayWallet.fromEncryptedFile(password= (args.decrypt_pw or config.DEFAULT_WALLET_PASSWORD), file_name=os.path.join(config.DATA_DIR, args.from_file))
         if not pypay_wallet: exitPyPay("Unable to load wallet, Exiting...")

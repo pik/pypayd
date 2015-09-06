@@ -93,7 +93,7 @@ class PaymentHandler(object):
 
     #Add socketio listener option for locally hosted insight-api
     def pollActiveAddresses(self):
-        '''Polling for inbound transactions to acvie address'''
+        '''Polling for inbound transactions to active addresses'''
         with self.locks['polling']:
             self.current_block = bitcoin_interface.getInfo()['info']['blocks']
             self.updateActiveAddresses()
