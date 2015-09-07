@@ -48,9 +48,13 @@ class PyPayWallet(BIP32Node):
             netcode = cls._getNetcode()
         with open(os.path.join(file_dir, file_name), 'rb') as rfile:
             data = rfile.read()
-        if password:
+        try:
+            if isinstance(data, bytes):
+                data = data.decode('utf-8')
+            wallet = json.loads(data)
+        except (TypeError, UnicodeDecodeError):
             data = cls._decryptFile(password, data)
-        wallet = json.loads(data)
+            wallet = json.loads(data)
         return cls.fromHwif((wallet.get('privkey') or wallet.get('pubkey')), keypath=wallet.get('keypath'), netcode=netcode)
 
     fromEncryptedFile = fromFile
