@@ -4,6 +4,7 @@ from .interfaces.counterwalletseed import mnemonicToEntropy
 import time
 import json
 import os
+from .errors import PyPayWalletError
 
 NETCODES = {"mainnet": "BTC", "testnet": "XTN"}
 #To Do: enable autosweep, privkey_mode only
@@ -87,6 +88,7 @@ class PyPayWallet(BIP32Node):
             file_dir = config.DATA_DIR
         if file_name is None:
             file_name = config.DEFAULT_WALLET_FILE
+        print(file_dir, file_name)
         target = os.path.join(file_dir, file_name)
         if os.path.isfile(target) and not force:
             raise PyPayWalletError("Could not save to file because file already exists and force=True was not specified")
@@ -100,15 +102,17 @@ class PyPayWallet(BIP32Node):
         "keypath": self.keypath,
         "pubkey": self.hwif(),
         "privkey": (self.hwif(True) if (self.is_private() and store_private ) else None)
-        })
+        }).encode('utf-8')
 
-    def toFile(self, **kwargs):
-        self._toFile(jsonForWallet(), args, kwargs)
+    def toFile(self, password=None, store_private=False, **kwargs):
+        payload = self.jsonForWallet(store_private)
+        if password:
+            import simplecrypt
+            payload = simplecrypt.encrypt(password, payload)
+        self._toFile(payload, **kwargs)
 
-    def toEncryptedFile(self, password, store_private=False, **kwargs):
-        import simplecrypt
-        data = simplecrypt.encrypt(password, jsonForWallet(store_private))
-        self._toFile(data, kwargs)
+    def toEncryptedFile(self, password=None, store_private=False, **kwargs):
+        self.toFile(password, store_private, **kwargs)
 
     def getCurrentAddress(self):
         '''return the public address for the current path'''

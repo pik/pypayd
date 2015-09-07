@@ -1,0 +1,2 @@
+class PyPayWalletError(Exception):
+    pass

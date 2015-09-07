@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser_wallet.add_argument("--encrypt-pw", help="password to encrypt wallet file")
     parser_wallet.add_argument("--to-console", help="togle to output wallet hwif to console", nargs='?', const=True)
     parser_wallet.add_argument("--output-private", help="toggle to output the private key", nargs='?', const=True)
-    parser_wallet.add_argument("--overwrite", help="toggle to overwrite existing wallet file")
+    parser_wallet.add_argument("--overwrite", help="toggle to overwrite existing wallet file", action='store_true')
 
     args= parser.parse_args()
 
@@ -157,8 +157,4 @@ if __name__ == '__main__':
                 except NameError:
                     print("No Private part for key")
         if args.to_file:
-            if not args.encrypt_pw:
-                logging.info("No encryption password provided for wallet, skipping")
-                pass
-            else:
-                pypay_wallet.toEncryptedFile(password = args.encrypt_pw, file_name = (args.to_file or config.DEFAULT_WALLET_FILE), store_private = args.output_private, force=args.overwrite)
+            pypay_wallet.toFile(password = args.encrypt_pw, file_name = (args.to_file or config.DEFAULT_WALLET_FILE), store_private = args.output_private, force=args.overwrite)
