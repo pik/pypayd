@@ -103,11 +103,11 @@ class PyPayWallet(BIP32Node):
         })
 
     def toFile(self, **kwargs):
-        self._toFile(json_for_wallet(), args, kwargs)
+        self._toFile(jsonForWallet(), args, kwargs)
 
     def toEncryptedFile(self, password, store_private=False, **kwargs):
         import simplecrypt
-        data = simplecrypt.encrypt(password, json_for_wallet(store_private))
+        data = simplecrypt.encrypt(password, jsonForWallet(store_private))
         self._toFile(data, kwargs)
 
     def getCurrentAddress(self):
