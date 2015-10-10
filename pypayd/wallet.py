@@ -155,10 +155,8 @@ class KeyPath(list):
     def set_pos(self, x, pos):
         self[pos] = int(x)
 
+# def dmc(x, y):
+#     x.__dict__[y.__name__] = y.__get__(x, x.__class__)
 
-if __name__ == '__main__':
-    def dmc(x, y):
-        x.__dict__[y.__name__] = y.__get__(x, x.__class__)
-    W = PyPayWallet.fromEncryptedFile(password="foobar")
 
 

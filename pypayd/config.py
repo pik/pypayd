@@ -15,7 +15,7 @@ RPC_PORT = 3080
 VERSION = 0.1
 AUTH_REQUIRED = True
 #Blockchain
-TESTNET = True
+TESTNET = False
 BLOCKCHAIN_CONNECT = 'http://localhost:3001' #'https://test-insight.bitpay.com' #None
 LOCAL_BLOCKCHAIN = False
 BLOCKCHAIN_SERVICE = 'insight'

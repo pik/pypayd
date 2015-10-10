@@ -12,9 +12,9 @@ def setHost():
     if config.LOCAL_BLOCKCHAIN and config.BLOCKCHAIN_CONNECT: pass
     elif config.LOCAL_BLOCKCHAIN:
         config.BLOCKCHAIN_CONNECT = ('http://localhost:3001' if config.TESTNET else 'http://localhost:3000')
-    else: 
+    else:
         config.BLOCKCHAIN_CONNECT = ("https://test-insight.bitpay.com/" if config.TESTNET else "https://insight.bitpay.com/")
-    
+
 def check():
     result = getUrl(config.BLOCKCHAIN_CONNECT + '/api/sync/')
     if result['error']:
@@ -23,8 +23,8 @@ def check():
         raise Exception('Insight reports error: %s' % result['error'])
     if result['status'] == 'syncing':
         logging.warning("WARNING: Insight is not fully synced to the blockchain: %s%% complete" % result['syncPercentage'])
-    return result 
-    
+    return result
+
 def getInfo():
     return getUrl(config.BLOCKCHAIN_CONNECT + '/api/status?q=getInfo')
 

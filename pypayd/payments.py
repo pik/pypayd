@@ -86,7 +86,8 @@ class PaymentHandler(object):
     def pollAddress(self, addr):
         logging.info('calling %s api for address info %s' %(self.bitcoin_interface_name, addr ) )
         unspent_tx = bitcoin_interface.getUtxo(addr)
-        if unspent_tx: logging.debug("Found %i utxo for address %s processing..." %(len(unspent_tx), addr))
+        if unspent_tx:
+            logging.debug("Found %i utxo for address %s processing..." %(len(unspent_tx), addr))
         for tx in unspent_tx:
             logging.debug(("tx: ", tx))
             self.processTxIn(addr, tx)
@@ -150,7 +151,7 @@ class PaymentHandler(object):
             elif amount > D(order['btc_price']) + D('.00001'):
                 notes.append("transaction with order_id %s overpaid amount by %s" %(order_id, str(amount - D(order['btc_price']))))
              #processing as config.ORDER_LIFE allows some control (i.e. if there was a server shutdown and we want to process old orders) blockchain timestamps are unfortunatly not very accurate
-            if not order['creation_time'] > timestamp - config.ORDER_LIFE:
+            if not order['created_at'] > timestamp - config.ORDER_LIFE:
                 valid = False
                 notes.append("transaction received after expiration time for order_id %s" %order_id)
             if order['filled'] != 0 and order['filled'] != tx['txid']:
@@ -159,7 +160,18 @@ class PaymentHandler(object):
         logging.debug(("txid: ", tx['txid'], "Result: ", valid, "      Notes ", str(notes)))
         sources = str(bitcoin_interface.sourceAddressesFromTX(tx_full))
         #payment record
-        bindings = {'receiving_address': receiving_address, 'txid': tx['txid'], 'source_address': sources, 'confirmations': tx.get('confirmations', 0) , 'block_number': (self.current_block -tx.get('confirmations', 0)), 'notes': str(notes), 'special_digits':tx_special_digits, 'order_id': order_id, 'amount': float(amount), "valid": valid }
+        bindings = {
+            'receiving_address': receiving_address,
+            'txid': tx['txid'],
+            'source_address': sources,
+            'confirmations': tx.get('confirmations', 0) ,
+            'block_number': (self.current_block -tx.get('confirmations', 0)),
+            'notes': str(notes),
+            'special_digits':tx_special_digits,
+            'order_id': order_id,
+            'amount': float(amount),
+            "valid": valid
+            }
         self.db.addPayment(bindings)
         #update order
         if order.get('filled') == 0 and valid == True:
@@ -238,7 +250,7 @@ class PaymentHandler(object):
         else:
             receiving_address= result[0]
         #Check if we hit a condition to generate a new address (note that atm, max_tx are hard-capped at 9999, independent of config settings)
-        if ( (time.time() - float(receiving_address['max_life'])) > float(receiving_address['creation_time']) ) or (receiving_address['special_digits'] >= (config.MAX_LEAF_TX if receiving_address['max_tx'] > config.MAX_LEAF_TX else receiving_address['max_tx'])) or (receiving_address['special_digits'] >= 9999) or gen_new or (receiving_address['special_digits'] == -1):
+        if ( (time.time() - float(receiving_address['max_life'])) > float(receiving_address['created_at']) ) or (receiving_address['special_digits'] >= (config.MAX_LEAF_TX if receiving_address['max_tx'] > config.MAX_LEAF_TX else receiving_address['max_tx'])) or (receiving_address['special_digits'] >= 9999) or gen_new or (receiving_address['special_digits'] == -1):
             return self.getNewAddress(-1 if gen_new else 1), -1 if gen_new else 1
         else:
             #increment digits on old address and update last_used time

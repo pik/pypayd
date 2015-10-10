@@ -7,6 +7,7 @@ from cherrypy import wsgiserver
 import jsonrpc
 from jsonrpc import dispatcher
 import json
+import time
 import logging
 from . import config, qr
 
@@ -44,33 +45,36 @@ class API:
             ret.update({'qr_image': (qr.bitcoinqr(ret['receiving_address']) if qr_code else None)})
             return ret
 
-        @dispatcher.add_method
-        def check_order_status(order_id=None, special_digits=None, timestamp=None, payment_address=None):
-            return payment_handler.CheckPaymentsFor(order_id=order_id, special_digits=special_digits, payment_address=payment_address, timestamp=timestamp)
+        # @dispatcher.add_method
+        # def check_order_status(order_id=None, special_digits=None, timestamp=None, payment_address=None):
+        #     return payment_handler.CheckPaymentsFor(order_id=order_id, special_digits=special_digits, payment_address=payment_address, timestamp=timestamp)
 
         @dispatcher.add_method
-        def get_payments(bindings= (),):
+        def get_payments(bindings= {}):
             return payment_handler.db.getPayments(bindings)
+
         @dispatcher.add_method
-        def poll_payments(bindings = (),):
+        def poll_payments(bindings = {}):
             return payment_handler.pollPayments(bindings)
+
         @dispatcher.add_method
-        def get_invalids(bindings= (),):
-            return payment_handler.db.getInvalids(bindings)
-        @dispatcher.add_method
-        def get_orders(bindings= (),):
+        def get_orders(bindings= {}):
             return payment_handler.db.getOrders(bindings)
+
         @dispatcher.add_method
-        def get_address(bindings= (), ):
+        def get_address(bindings= {}):
             return payment_handler.db.getAddresses(bindings)
+
         @dispatcher.add_method
-        def get_unfilled_orders(timestamp=config.ORDER_LIFE):
-            statement = "select * from orders where filled = 0 and timestamp > %s" %(time.time() - config.ORDER_LIFE)
-            return payment_handler.db.rquery(statement)
+        def get_unfilled_orders(timestamp=None):
+            statement = "select * from orders where filled = 0 and created_at > ?"
+            return payment_handler.db.rquery(statement, (timestamp or 0, ))
+
         @dispatcher.add_method
-        def get_filled_orders(timestamp=config.ORDER_LIFE):
-            statement = "select * from orders where filled != 0 and timestamp > %s" %(time.time() - config.ORDER_LIFE)
-            return payment_handler.db.rquery(statement)
+        def get_filled_orders(timestamp=None):
+            statement = "select * from orders where filled != 0 and created_at > ?"
+            return payment_handler.db.rquery(statement, (timestamp or 0, ))
+
         @dispatcher.add_method
         def query(statement, bindings=()):
             return payment_handler.db.rquery(statement, bindings)
@@ -80,6 +84,7 @@ class API:
             if username == config.RPC_USER:
                 return config.RPC_PASSWORD
             return None
+
         @app.route('/', methods = ["POST",])
         @app.route('/api', methods = ["POST",])
         def handle_post():

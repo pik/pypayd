@@ -57,11 +57,11 @@ class PyPayDB(object):
 
     def _initOrders(self):
         ''' create order table '''
-        statement = """create table if not exists orders (rowid INTEGER PRIMARY KEY, order_id UNIQUE NOT NULL, native_price, native_currency, btc_price, item_number, receiving_address, special_digits, keypath, creation_time INTEGER DEFAULT(strftime('%s', 'now')), max_life, filled DEFAULT 0)"""
+        statement = """create table if not exists orders (rowid INTEGER PRIMARY KEY, order_id UNIQUE NOT NULL, native_price, native_currency, btc_price, item_number, receiving_address, special_digits, keypath, created_at INTEGER DEFAULT(strftime('%s', 'now')), max_life, filled DEFAULT 0)"""
         self.wquery(statement)
     def _initAddresses(self):
         ''' create address table '''
-        statement= """create table if not exists addresses (rowid INTEGER PRIMARY KEY, receiving_address UNIQUE NOT NULL, keypath, max_tx, max_life, special_digits, creation_time INTEGER DEFAULT(strftime('%s', 'now')), last_used INTEGER DEFAULT(strftime('%s', 'now')))"""
+        statement= """create table if not exists addresses (rowid INTEGER PRIMARY KEY, receiving_address UNIQUE NOT NULL, keypath, max_tx, max_life, special_digits, created_at INTEGER DEFAULT(strftime('%s', 'now')), last_used INTEGER DEFAULT(strftime('%s', 'now')))"""
         self.wquery(statement)
     def _initPayments(self):
         ''' create payment table '''
@@ -85,7 +85,7 @@ class PyPayDB(object):
             self.wquery(statement, bindings)
             self.last_updated['orders'] = time.time()
         except apsw.ConstraintError as e:
-            logging.warn(e)
+            logging.warning(e)
             return e
         return None
 

@@ -7,7 +7,7 @@ import os
 import sys
 import time
 from configobj import ConfigObj
-from src import wallet, db, payments, api, config
+from pypayd import wallet, db, payments, api, config
 from ast import literal_eval
 
 def try_type_eval(val):
